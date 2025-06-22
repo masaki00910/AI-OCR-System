@@ -1,0 +1,163 @@
+# =============================================================================
+# 汎用ドキュメント点検補正システム .gitignore
+# Node.js/NestJS + React/Vite + Docker/Podman 構成
+# =============================================================================
+
+# 環境変数ファイル（重要）
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+!.env.example
+
+# Node.js 関連
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# 依存関係ロックファイル（プロジェクトに応じて選択）
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ビルド出力
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDEとエディター
+# .vscode/  # プロジェクト固有の設定は共有推奨
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ログファイル
+logs/
+*.log
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# 実行時ディレクトリ
+lib-cov
+coverage
+nyc_output
+.grunt
+bower_components
+.lock-wscript
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# NestJS 固有
+.nest_dist/
+
+# React/Vite 固有
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# テスト関連
+.nyc_output
+coverage/
+*.lcov
+
+# Docker 関連
+docker-compose.override.yml
+.docker/
+volumes/
+
+# Podman 関連
+.podman/
+
+# データベース関連
+*.db
+*.sqlite
+*.sqlite3
+dump.sql
+backup.sql
+
+# 画像・ドキュメント・メディアファイル（プロジェクト依存）
+uploads/
+temp/
+tmp/
+debug-images/
+*.tmp
+
+# セキュリティ・認証関連
+*.pem
+*.key
+*.cert
+*.crt
+ssl/
+secrets/
+
+# バックアップファイル
+*.backup
+*.bak
+*.orig
+
+# OS生成ファイル
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# エクスポート・出力ファイル
+exports/
+reports/
+downloads/
+
+# OCR処理関連の一時ファイル
+ocr-temp/
+processed/
+cropped/
+
+# AI・機械学習モデル
+*.model
+*.pkl
+*.h5
+
+# その他の一時ファイル
+.temp
+.cache
+.parcel-cache
+
+# エラーレポート
+error-reports/
+crash-dumps/
+
+# プロダクション設定
+production/
+staging/
+
+# ユーザー生成コンテンツ
+user-uploads/
+documents/
+attachments/
