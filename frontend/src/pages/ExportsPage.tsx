@@ -145,7 +145,7 @@ export default function ExportsPage() {
       }
     },
     onConnect: () => {
-      console.log('エクスポート進捗通知WebSocket接続完了');
+      // console.log('エクスポート進捗通知WebSocket接続完了');
     },
     onError: (error) => {
       console.error('WebSocket接続エラー:', error);

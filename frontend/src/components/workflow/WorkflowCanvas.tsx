@@ -108,16 +108,19 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
     [isEditMode, workflowEdges, onEdgesChange]
   );
 
-  const onNodeClick = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      console.log('Node clicked:', node);
-      console.log('Available workflow nodes:', workflowNodes);
-      const workflowNode = workflowNodes.find(n => n.id === node.id);
-      console.log('Found workflow node:', workflowNode);
-      onNodeSelect(workflowNode || null);
-      // onEdgeSelect(null); // この行を削除 - handleNodeSelectが既にselectedEdge: nullを設定済み
+  const onNodesClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      // console.log('Node clicked:', node);
+      // console.log('Available workflow nodes:', workflowNodes);
+      const workflowNode = workflowNodes.find((n) => n.id === node.id);
+      // console.log('Found workflow node:', workflowNode);
+      if (workflowNode) {
+        onNodeSelect(workflowNode);
+      } else {
+        onNodeSelect(null);
+      }
     },
-    [workflowNodes, onNodeSelect, onEdgeSelect]
+    [workflowNodes, onNodeSelect]
   );
 
   const onEdgeClick = useCallback(
@@ -228,7 +231,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         onNodesChange={onNodesChangeFlow}
         onEdgesChange={onEdgesChangeFlow}
         onConnect={onConnect}
-        onNodeClick={onNodeClick}
+        onNodeClick={onNodesClick}
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onInit={setReactFlowInstance}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -143,9 +143,12 @@ const WorkflowBuilderPage: React.FC = () => {
   });
 
   // Debug builderState changes
-  React.useEffect(() => {
-    console.log('builderState updated:', builderState);
-    console.log('selectedNode:', builderState.selectedNode);
+  useEffect(() => {
+    // console.log('builderState updated:', builderState);
+    // console.log('selectedNode:', builderState.selectedNode);
+    if (builderState.selectedWorkflow && builderState.selectedWorkflow.graphJson.nodes.length > 0) {
+      validateWorkflow();
+    }
   }, [builderState]);
 
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false);
@@ -159,7 +162,7 @@ const WorkflowBuilderPage: React.FC = () => {
     try {
       setIsLoading(true);
       const response = await workflowApi.getDefinitions();
-      console.log('API response:', response.data);
+      // console.log('API response:', response.data);
       const workflowsData = response.data.map((workflow: any) => ({
         id: workflow.id,
         name: workflow.name,
@@ -168,13 +171,13 @@ const WorkflowBuilderPage: React.FC = () => {
         isActive: workflow.isActive,
         graphJson: workflow.graphJson || { nodes: [], edges: [] },
       }));
-      console.log('Processed workflows:', workflowsData);
+      // console.log('Processed workflows:', workflowsData);
       if (workflowsData.length > 0) {
-        console.log('First workflow graphJson:', workflowsData[0].graphJson);
+        // console.log('First workflow graphJson:', workflowsData[0].graphJson);
       }
       setWorkflows(workflowsData);
     } catch (error) {
-      console.error('Failed to load workflows:', error);
+      // console.error('Failed to load workflows:', error);
       // Use mock data as fallback
       setWorkflows([
         {
@@ -200,12 +203,12 @@ const WorkflowBuilderPage: React.FC = () => {
   }, []);
 
   // Load workflows on mount
-  React.useEffect(() => {
+  useEffect(() => {
     loadWorkflows();
   }, [loadWorkflows]);
 
   const handleWorkflowSelect = useCallback((workflow: WorkflowDefinition | null) => {
-    console.log('handleWorkflowSelect called with:', workflow);
+    // console.log('handleWorkflowSelect called with:', workflow);
     // Ensure proper data structure for selected workflow
     if (workflow) {
       const normalizedWorkflow = {
@@ -244,7 +247,7 @@ const WorkflowBuilderPage: React.FC = () => {
       }));
 
       setBuilderState(prev => {
-        console.log('loadWorkflow: Setting selectedWorkflow, preserving selectedNode:', prev.selectedNode);
+        // console.log('loadWorkflow: Setting selectedWorkflow, preserving selectedNode:', prev.selectedNode);
         return {
           ...prev,
           selectedWorkflow: normalizedWorkflow,
@@ -301,22 +304,22 @@ const WorkflowBuilderPage: React.FC = () => {
   }, [setBuilderState]);
 
   const handleNodeSelect = useCallback((node: WorkflowGraphNode | null) => {
-    console.log('handleNodeSelect called with:', node);
+    // console.log('handleNodeSelect called with:', node);
     setBuilderState(prev => {
       // 既に選択されているノードと同じものをクリックした場合は何もしない
       if (prev.selectedNode?.id === node?.id) {
-        console.log('Same node already selected, skipping update');
+        // console.log('Same node already selected, skipping update');
         return prev;
       }
       
-      console.log('Updating builderState. Previous selectedNode:', prev.selectedNode);
-      console.log('New selectedNode:', node);
+      // console.log('Updating builderState. Previous selectedNode:', prev.selectedNode);
+      // console.log('New selectedNode:', node);
       const newState = {
         ...prev,
         selectedNode: node,
         selectedEdge: null, // ノード選択時はエッジの選択を解除
       };
-      console.log('setState returning:', newState);
+      // console.log('setState returning:', newState);
       return newState;
     });
   }, [setBuilderState]);
@@ -391,7 +394,7 @@ const WorkflowBuilderPage: React.FC = () => {
   }, []);
 
   // Auto-validate when workflow changes
-  React.useEffect(() => {
+  useEffect(() => {
     runValidation();
   }, [runValidation]);
 
@@ -436,7 +439,7 @@ const WorkflowBuilderPage: React.FC = () => {
 
       handleNodesChange(updatedNodes);
     } catch (error) {
-      console.error('Auto-layout failed:', error);
+      // console.error('Auto-layout failed:', error);
     }
   }, [handleNodesChange]);
 
@@ -496,9 +499,9 @@ const WorkflowBuilderPage: React.FC = () => {
         ));
       }
       
-      console.log('Workflow saved successfully');
+      // console.log('Workflow saved successfully');
     } catch (error) {
-      console.error('Failed to save workflow:', error);
+      // console.error('Failed to save workflow:', error);
       alert('ワークフローの保存に失敗しました。');
     } finally {
       setIsLoading(false);
@@ -616,9 +619,9 @@ const WorkflowBuilderPage: React.FC = () => {
               {/* Properties Panel */}
               <Paper sx={{ flex: 1, borderRadius: 0, borderBottom: '1px solid #e0e0e0' }}>
                 {(() => {
-                  console.log('Rendering PropertyPanel with selectedNode:', builderState.selectedNode);
-                  console.log('builderState.selectedNode type:', typeof builderState.selectedNode);
-                  console.log('builderState.selectedNode === null:', builderState.selectedNode === null);
+                  // console.log('Rendering PropertyPanel with selectedNode:', builderState.selectedNode);
+                  // console.log('builderState.selectedNode type:', typeof builderState.selectedNode);
+                  // console.log('builderState.selectedNode === null:', builderState.selectedNode === null);
                   return (
                     <PropertyPanel
                       selectedNode={builderState.selectedNode}

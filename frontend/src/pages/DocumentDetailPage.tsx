@@ -105,13 +105,13 @@ const DocumentDetailPage: React.FC = () => {
   const [blockToDelete, setBlockToDelete] = useState<SelectedBlock | null>(null);
 
   useEffect(() => {
-    console.log('DocumentDetailPage useEffect triggered, id:', id);
+    // console.log('DocumentDetailPage useEffect triggered, id:', id);
     fetchDocument();
   }, [id]);
 
   useEffect(() => {
     if (documentData?.id) {
-      console.log('Document loaded, loading page images');
+      // console.log('Document loaded, loading page images');
       // 既存の抽出結果をロード
       fetchExistingExtractions();
     }
@@ -120,11 +120,11 @@ const DocumentDetailPage: React.FC = () => {
   // Cleanup (no longer needed for blob URLs since we're using PDF directly)
 
   const fetchDocument = async () => {
-    console.log('fetchDocument called with id:', id);
+    // console.log('fetchDocument called with id:', id);
     try {
       setLoading(true);
       const response = await api.get(`/api/v1/documents/${id}`);
-      console.log('Document API response:', response.data);
+      // console.log('Document API response:', response.data);
       setDocumentData(response.data);
       
       // テンプレート情報も取得
@@ -145,16 +145,16 @@ const DocumentDetailPage: React.FC = () => {
 
   const fetchExistingExtractions = async () => {
     if (!documentData?.id) {
-      console.log('No document ID, skipping extraction fetch');
+      // console.log('No document ID, skipping extraction fetch');
       return;
     }
 
     try {
-      console.log('Fetching existing extractions for document:', documentData.id);
+      // console.log('Fetching existing extractions for document:', documentData.id);
       const response = await api.get(`/api/v1/ocr/documents/${documentData.id}/extractions`);
       const extractions = response.data;
       
-      console.log('Existing extractions found:', extractions);
+      // console.log('Existing extractions found:', extractions);
 
       if (extractions && extractions.length > 0) {
         // 既存の抽出結果をSelectedBlock形式に変換
@@ -166,7 +166,7 @@ const DocumentDetailPage: React.FC = () => {
           isProcessing: false,
         }));
 
-        console.log('Setting existing blocks:', existingBlocks);
+        // console.log('Setting existing blocks:', existingBlocks);
         setSelectedBlocks(existingBlocks);
       }
     } catch (err: any) {
@@ -226,7 +226,7 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const handlePageChange = (pageNumber: number) => {
-    console.log('Page changed to:', pageNumber);
+    // console.log('Page changed to:', pageNumber);
     // ページ変更時に選択範囲をクリア（必要に応じて）
   };
 
@@ -283,12 +283,12 @@ const DocumentDetailPage: React.FC = () => {
             // URL をクリーンアップ
             URL.revokeObjectURL(imageUrl);
             
-            console.log('Image cropped successfully:', {
-              originalSize: { width: img.naturalWidth, height: img.naturalHeight },
-              cropArea: { actualX, actualY, actualWidth, actualHeight },
-              croppedSize: { width: actualWidth, height: actualHeight },
-              base64Length: base64.length
-            });
+            // console.log('Image cropped successfully:', {
+            //   originalSize: { width: img.naturalWidth, height: img.naturalHeight },
+            //   cropArea: { actualX, actualY, actualWidth, actualHeight },
+            //   croppedSize: { width: actualWidth, height: actualHeight },
+            //   base64Length: base64.length
+            // });
             
             resolve(base64);
           } catch (error) {
@@ -318,18 +318,18 @@ const DocumentDetailPage: React.FC = () => {
         )
       );
 
-      console.log('Making OCR API call with coordinates:', {
-        blockId: block.blockId,
-        coordinates: block.coordinates,
-        documentId: documentData?.id,
-        templateId: documentData?.templateId,
-        pageNumber: currentPage
-      });
+      // console.log('Making OCR API call with coordinates:', {
+      //   blockId: block.blockId,
+      //   coordinates: block.coordinates,
+      //   documentId: documentData?.id,
+      //   templateId: documentData?.templateId,
+      //   pageNumber: currentPage
+      // });
       
       // フロントエンドで画像をクロップしてBase64エンコード
-      console.log('Cropping image from selection...');
+      // console.log('Cropping image from selection...');
       const croppedImageBase64 = await cropImageFromSelection(block.coordinates);
-      console.log('Image cropped successfully, base64 length:', croppedImageBase64.length);
+      // console.log('Image cropped successfully, base64 length:', croppedImageBase64.length);
       
       // クロップされた画像をBase64として送信
       const response = await api.post('/api/v1/ocr/extract/block', {
@@ -340,7 +340,7 @@ const DocumentDetailPage: React.FC = () => {
         coordinates: block.coordinates,
       });
       
-      console.log('OCR Response received:', response.data);
+      // console.log('OCR Response received:', response.data);
       
       // 結果を更新
       setSelectedBlocks(prev => {
@@ -403,10 +403,10 @@ const DocumentDetailPage: React.FC = () => {
     try {
       // バックエンドで論理削除を実行（extractionIdがある場合のみ）
       if (blockToDelete.extractionId) {
-        console.log('Deleting extraction with ID:', blockToDelete.extractionId);
+        // console.log('Deleting extraction with ID:', blockToDelete.extractionId);
         const deleteResponse = await api.delete(`/api/v1/ocr/extractions/${blockToDelete.extractionId}`);
-        console.log('Delete response:', deleteResponse.data);
-        console.log('Extraction deleted from backend:', blockToDelete.extractionId);
+        // console.log('Delete response:', deleteResponse.data);
+        // console.log('Extraction deleted from backend:', blockToDelete.extractionId);
       } else {
         console.warn('No extractionId found for block, only removing from UI');
       }
@@ -476,7 +476,7 @@ const DocumentDetailPage: React.FC = () => {
         correctionReason: '手動修正',
       });
 
-      console.log('OCR correction saved:', response.data);
+      // console.log('OCR correction saved:', response.data);
 
       // ローカルステートを更新
       setSelectedBlocks(prev => 
@@ -705,8 +705,8 @@ const DocumentDetailPage: React.FC = () => {
                   </Typography>
                 ) : (
                   selectedBlocks.map((block, index) => {
-                    console.log(`Rendering block ${index}:`, block);
-                    console.log(`Block isProcessing: ${block.isProcessing}, extractionResult:`, block.extractionResult);
+                    // console.log(`Rendering block ${index}:`, block);
+                    // console.log(`Block isProcessing: ${block.isProcessing}, extractionResult:`, block.extractionResult);
                     const blockDef = documentData.template?.blocks?.find(b => b.block_id === block.blockId);
                     return (
                       <Box key={index} sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
@@ -792,10 +792,10 @@ const DocumentDetailPage: React.FC = () => {
                         </Box>
                         
                         {(() => {
-                          console.log(`UI condition check - isProcessing: ${block.isProcessing}, extractionResult: ${!!block.extractionResult}`);
+                          // console.log(`UI condition check - isProcessing: ${block.isProcessing}, extractionResult: ${!!block.extractionResult}`);
                           
                           if (block.isProcessing) {
-                            console.log('Rendering: OCR processing...');
+                            // console.log('Rendering: OCR processing...');
                             return (
                               <Box display="flex" alignItems="center" gap={1}>
                                 <CircularProgress size={16} />
@@ -805,7 +805,7 @@ const DocumentDetailPage: React.FC = () => {
                               </Box>
                             );
                           } else if (block.extractionResult && !block.extractionResult.error) {
-                            console.log('Rendering OCR result - showJsonView:', showJsonView[block.blockId]);
+                            // console.log('Rendering OCR result - showJsonView:', showJsonView[block.blockId]);
                             
                             // JSON表示が有効な場合はJSONを表示、そうでなければデフォルトで編集フォームを表示
                             if (showJsonView[block.blockId]) {
@@ -843,14 +843,14 @@ const DocumentDetailPage: React.FC = () => {
                               }
                             }
                           } else if (block.extractionResult?.error) {
-                            console.log('Rendering: OCR error:', block.extractionResult.error);
+                            // console.log('Rendering: OCR error:', block.extractionResult.error);
                             return (
                               <Alert severity="error" sx={{ mt: 1 }}>
                                 {block.extractionResult.error}
                               </Alert>
                             );
                           } else {
-                            console.log('Rendering: Waiting for OCR...');
+                            // console.log('Rendering: Waiting for OCR...');
                             return (
                               <Box>
                                 <Typography variant="body2" color="text.secondary">

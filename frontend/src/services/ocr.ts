@@ -90,13 +90,6 @@ export class OCRService {
     tableType: string
   ): Promise<OCRResult> {
     try {
-      // デバッグログ
-      console.log('Sending OCR request:', {
-        imageBase64Length: imageBase64.length,
-        tableType: tableType,
-        firstChars: imageBase64.substring(0, 50),
-      });
-
       const response = await axios.post(`${this.apiUrl}/ocr`, {
         imageBase64,
         tableType,
@@ -133,3 +126,24 @@ export function getOCRService(): OCRService {
   }
   return ocrServiceInstance;
 }
+
+export const runOcrOnCroppedImage = async (
+  documentId: string,
+  blockId: string,
+  templateId: string,
+  coordinates: { pageNumber: number; x_1: number; y_1: number; x_2: number; y_2: number },
+  prompt?: string,
+) => {
+  try {
+    const response = await api.post('/ocr/extract-from-coordinates', {
+      documentId,
+      blockId,
+      templateId,
+      coordinates,
+      prompt,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to crop image from PDF');
+  }
+};

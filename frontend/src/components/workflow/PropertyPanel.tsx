@@ -31,7 +31,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const [edgeData, setEdgeData] = useState<WorkflowGraphEdge | null>(null);
 
   useEffect(() => {
-    console.log('PropertyPanel selectedNode changed:', selectedNode);
+    // console.log('PropertyPanel selectedNode changed:', selectedNode);
     setNodeData(selectedNode ? { ...selectedNode } : null);
   }, [selectedNode]);
 

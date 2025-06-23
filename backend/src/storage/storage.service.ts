@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import * as Minio from 'minio';
 import { Readable } from 'stream';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class StorageService {
   private minioClient: Minio.Client;
   private bucketName = 'survey-pdfs';
+  private region = 'us-east-1';
+  private logger = new Logger(StorageService.name);
 
   constructor() {
     // 内部通信用のMinIOクライアント
@@ -24,28 +27,32 @@ export class StorageService {
     try {
       const exists = await this.minioClient.bucketExists(this.bucketName);
       if (!exists) {
-        await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
-        console.log(`Bucket ${this.bucketName} created successfully`);
+        this.logger.log(`Bucket ${this.bucketName} does not exist. Creating...`);
+        await this.minioClient.makeBucket(this.bucketName, this.region);
+        // console.log(`Bucket ${this.bucketName} created successfully`);
+
+        // バケットポリシーを設定（パブリック読み取り可能）
+        const policy = {
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Allow',
+              Principal: { AWS: ['*'] },
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${this.bucketName}/*`],
+            },
+          ],
+        };
+        
+        await this.minioClient.setBucketPolicy(
+          this.bucketName,
+          JSON.stringify(policy)
+        );
+        // console.log(`Bucket policy set for ${this.bucketName}`);
+        this.logger.log(`Bucket policy set for ${this.bucketName}`);
+      } else {
+        this.logger.log(`Bucket ${this.bucketName} already exists.`);
       }
-      
-      // バケットポリシーを設定（パブリック読み取り可能）
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${this.bucketName}/*`],
-          },
-        ],
-      };
-      
-      await this.minioClient.setBucketPolicy(
-        this.bucketName,
-        JSON.stringify(policy)
-      );
-      console.log(`Bucket policy set for ${this.bucketName}`);
     } catch (error) {
       console.error('Error creating bucket:', error);
     }

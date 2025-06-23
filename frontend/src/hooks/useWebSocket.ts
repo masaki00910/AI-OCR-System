@@ -50,7 +50,7 @@ export const useWebSocket = (url: string, options: WebSocketOptions = {}) => {
         setIsConnected(true);
         setError(null);
         reconnectAttemptsRef.current = 0;
-        console.log('WebSocket接続しました');
+        // console.log('WebSocket接続しました');
         onConnect?.();
       };
 
@@ -65,13 +65,13 @@ export const useWebSocket = (url: string, options: WebSocketOptions = {}) => {
 
       wsRef.current.onclose = () => {
         setIsConnected(false);
-        console.log('WebSocket切断されました');
+        // console.log('WebSocket切断されました');
         onDisconnect?.();
 
         // 自動再接続
         if (autoReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          console.log(`WebSocket再接続試行 ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
+          // console.log(`WebSocket再接続試行 ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
