@@ -129,11 +129,6 @@ secrets/
 ehthumbs.db
 Thumbs.db
 
-# エクスポート・出力ファイル
-exports/
-reports/
-downloads/
-
 # OCR処理関連の一時ファイル
 ocr-temp/
 processed/
