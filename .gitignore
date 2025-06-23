@@ -156,8 +156,3 @@ crash-dumps/
 # プロダクション設定
 production/
 staging/
-
-# ユーザー生成コンテンツ
-user-uploads/
-documents/
-attachments/
