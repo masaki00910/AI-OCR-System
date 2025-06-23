@@ -20,6 +20,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -35,8 +37,8 @@ import {
   BugReport as BugReportIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { api, documentApi } from '../services/api';
+import PdfViewer from '../components/PdfViewer';
 import OcrResultEditor from '../components/OcrResultEditor';
 import ApprovalSection from '../components/ApprovalSection';
 
@@ -84,22 +86,13 @@ const DocumentDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [zoom, setZoom] = useState(1);
-  const [transformState, setTransformState] = useState({ scale: 1, positionX: 0, positionY: 0 });
-  const transformRef = useRef<ReactZoomPanPinchRef>(null);
+  const [scale, setScale] = useState(1.0);
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
-  // Store the initial clientX/Y and the bounding rect at mouse down
-  const [mouseDownData, setMouseDownData] = useState<{ clientX: number, clientY: number, rect: DOMRect } | null>(null);
   const [currentBlockType, setCurrentBlockType] = useState<string>('');
-  const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
-  const [interactionMode, setInteractionMode] = useState<'pan' | 'selection'>('pan');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [mode, setMode] = useState<'move' | 'select'>('move');
   
-  // 新機能のステート
+  // UI制御のステート
   const [autoOcr, setAutoOcr] = useState(true);
   const [debugPreviewOpen, setDebugPreviewOpen] = useState(false);
   const [debugData, setDebugData] = useState<{
@@ -107,7 +100,6 @@ const DocumentDetailPage: React.FC = () => {
     rawResponse?: string;
     blockLabel?: string;
   } | null>(null);
-  const [selectionPreview, setSelectionPreview] = useState<string | null>(null);
   const [editingBlock, setEditingBlock] = useState<SelectedBlock | null>(null);
   const [showJsonView, setShowJsonView] = useState<{ [blockId: string]: boolean }>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -120,21 +112,16 @@ const DocumentDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (document?.id) {
-      console.log('Document loaded, fetching page image for page:', currentPage);
-      fetchPageImage();
+      console.log('Document loaded, setting PDF URL');
+      // PDFの直接URLを設定
+      const pdfProxyUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/documents/${document.id}/pdf`;
+      setPdfUrl(pdfProxyUrl);
       // 既存の抽出結果をロード
       fetchExistingExtractions();
     }
-  }, [document, currentPage]);
+  }, [document]);
 
-  // Cleanup blob URL on unmount
-  useEffect(() => {
-    return () => {
-      if (pageImageUrl) {
-        URL.revokeObjectURL(pageImageUrl);
-      }
-    };
-  }, [pageImageUrl]);
+  // Cleanup (no longer needed for blob URLs since we're using PDF directly)
 
   const fetchDocument = async () => {
     console.log('fetchDocument called with id:', id);
@@ -159,41 +146,6 @@ const DocumentDetailPage: React.FC = () => {
     }
   };
 
-  const fetchPageImage = async () => {
-    console.log('fetchPageImage called, document:', document, 'currentPage:', currentPage);
-    if (!document?.id) {
-      console.log('No document ID, skipping image fetch');
-      return;
-    }
-
-    try {
-      setImageLoading(true);
-      setImageError(null);
-      
-      // Cleanup previous image URL
-      if (pageImageUrl) {
-        URL.revokeObjectURL(pageImageUrl);
-        setPageImageUrl(null);
-      }
-
-      console.log('Fetching page image:', `/api/v1/documents/${document.id}/pages/${currentPage}`);
-      const response = await api.get(`/api/v1/documents/${document.id}/pages/${currentPage}`, {
-        responseType: 'blob'
-      });
-      
-      // Create blob URL for image display
-      const blob = new Blob([response.data], { type: 'image/png' });
-      const imageUrl = URL.createObjectURL(blob);
-      
-      console.log('Image blob created, URL:', imageUrl);
-      setPageImageUrl(imageUrl);
-    } catch (err: any) {
-      console.error('Failed to fetch page image:', err);
-      setImageError(err.response?.data?.message || 'ページ画像の取得に失敗しました');
-    } finally {
-      setImageLoading(false);
-    }
-  };
 
   const fetchExistingExtractions = async () => {
     if (!document?.id) {
@@ -228,25 +180,11 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const handleZoomIn = () => {
-    if (transformRef.current) {
-      transformRef.current.zoomIn(0.25);
-    }
+    setScale(Math.min(scale + 0.1, 3.0));
   };
 
   const handleZoomOut = () => {
-    if (transformRef.current) {
-      transformRef.current.zoomOut(0.25);
-    }
-  };
-
-  const handleTransformed = (ref: ReactZoomPanPinchRef, state: any) => {
-    const newScale = state.scale;
-    setZoom(newScale);
-    setTransformState({
-      scale: state.scale,
-      positionX: state.positionX,
-      positionY: state.positionY
-    });
+    setScale(Math.max(scale - 0.1, 0.5));
   };
 
   const handlePreviousPage = () => {
@@ -259,115 +197,43 @@ const DocumentDetailPage: React.FC = () => {
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // 範囲選択モードかつブロックタイプが選択されている場合のみ範囲選択を開始
-    if (interactionMode !== 'selection' || !currentBlockType) {
-      return;
+  const handleModeChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    newMode: 'move' | 'select' | null,
+  ) => {
+    if (newMode !== null) {
+      setMode(newMode);
     }
-    
-    // 画像要素を取得
-    const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
-    if (!imgElement) {
-      console.error('Image element not found for coordinate calculation');
-      return;
-    }
-    
-    // 画像要素の境界矩形を取得（拡大縮小済みの実際の表示位置）
-    const imgRect = imgElement.getBoundingClientRect();
-    
-    // 画像要素内での相対座標を計算
-    const relativeX = e.clientX - imgRect.left;
-    const relativeY = e.clientY - imgRect.top;
-    
-    // 画像のナチュラルサイズへの座標変換
-    const actualX = (relativeX / imgElement.clientWidth) * imgElement.naturalWidth;
-    const actualY = (relativeY / imgElement.clientHeight) * imgElement.naturalHeight;
-    
-    console.log('Mouse down - Client coordinates:', e.clientX, e.clientY);
-    console.log('Image rect:', imgRect);
-    console.log('Relative coordinates:', relativeX, relativeY);
-    console.log('Natural coordinates:', actualX, actualY);
-    
-    setMouseDownData({ clientX: e.clientX, clientY: e.clientY, rect: imgRect });
-    setIsSelecting(true);
-    setSelectionStart({ x: actualX, y: actualY });
-    setSelectionEnd({ x: actualX, y: actualY }); // Initially, end is same as start
-    
-    // イベント伝播を停止して、他のイベントハンドラーとの競合を防ぐ
-    e.preventDefault();
-    e.stopPropagation();
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isSelecting || !selectionStart || !mouseDownData || interactionMode !== 'selection') return;
+  const handleSelectionComplete = (rectangle: any) => {
+    if (!currentBlockType) return;
     
-    // 画像要素を取得
-    const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
-    if (!imgElement) {
-      return;
-    }
-    
-    // 画像要素の境界矩形を取得（現在の実際の表示位置）
-    const imgRect = imgElement.getBoundingClientRect();
-    
-    // 画像要素内での相対座標を計算
-    const relativeX = e.clientX - imgRect.left;
-    const relativeY = e.clientY - imgRect.top;
-    
-    // 画像のナチュラルサイズへの座標変換
-    const actualX = (relativeX / imgElement.clientWidth) * imgElement.naturalWidth;
-    const actualY = (relativeY / imgElement.clientHeight) * imgElement.naturalHeight;
-
-    setSelectionEnd({ x: actualX, y: actualY });
-    
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleMouseUp = async (e?: React.MouseEvent<HTMLDivElement>) => {
-    if (!isSelecting || !selectionStart || !selectionEnd || !currentBlockType || interactionMode !== 'selection' || !mouseDownData) return;
-    
-    // 選択範囲の座標（既にナチュラルサイズに変換済み）
-    const coordinates = {
-      x: Math.min(selectionStart.x, selectionEnd.x),
-      y: Math.min(selectionStart.y, selectionEnd.y),
-      width: Math.abs(selectionEnd.x - selectionStart.x),
-      height: Math.abs(selectionEnd.y - selectionStart.y),
+    const newBlock: SelectedBlock = {
+      blockId: currentBlockType,
+      coordinates: {
+        x: rectangle.x,
+        y: rectangle.y,
+        width: rectangle.width,
+        height: rectangle.height,
+      },
+      isProcessing: true,
     };
     
-    console.log('Mouse up - Final coordinates for OCR:', coordinates);
+    // 新しいブロックを追加（既存ブロックは保持）
+    setSelectedBlocks(prev => [...prev, newBlock]);
     
-    // 最小サイズチェック（実際の画像座標で）
-    if (coordinates.width > 50 && coordinates.height > 50) {
-      const newBlock: SelectedBlock = {
-        blockId: currentBlockType,
-        coordinates,
-        isProcessing: true,
-      };
-      
-      // 選択範囲のプレビュー画像を生成（削除予定）
-      // const preview = await generateCroppedImage(coordinates);
-      // setSelectionPreview(preview);
-      
-      // 新しいブロックを追加（既存ブロックは保持）
-      setSelectedBlocks(prev => [...prev, newBlock]);
-      
-      // 自動OCRが有効な場合のみ実行
-      if (autoOcr) {
-        performOCR(newBlock);
-      }
-    }
-    
-    setIsSelecting(false);
-    setSelectionStart(null);
-    setSelectionEnd(null);
-    setMouseDownData(null); // Clear mouseDownData
-    
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+    // 自動OCRが有効な場合のみ実行
+    if (autoOcr) {
+      performOCR(newBlock);
     }
   };
+
+  const handlePageChange = (pageNumber: number) => {
+    console.log('Page changed to:', pageNumber);
+    // ページ変更時に選択範囲をクリア（必要に応じて）
+  };
+
 
   const performOCR = async (block: SelectedBlock) => {
     try {
@@ -378,51 +244,26 @@ const DocumentDetailPage: React.FC = () => {
         )
       );
 
-      // クロップされた画像を生成（デバッグ用）
-      let croppedImageUrl = '';
-      if (pageImageUrl) {
-        console.log('Generating cropped image with coordinates:', block.coordinates);
-        croppedImageUrl = await generateCroppedImage(block.coordinates);
-        console.log('Generated cropped image (地積測量AI-OCR方式) - data URL length:', croppedImageUrl.length);
-        
-        // Base64部分の長さもログ出力
-        const base64Part = croppedImageUrl.startsWith('data:image/png;base64,') 
-          ? croppedImageUrl.split(',')[1]
-          : croppedImageUrl;
-        console.log('Base64 image length for OCR:', base64Part.length);
-      }
-
-      // 地積測量AI-OCR方式でクロップ済み画像をBase64形式で送信
-      let imageBase64 = '';
-      if (croppedImageUrl) {
-        // data:image/png;base64, の部分を削除してBase64のみ抽出
-        imageBase64 = croppedImageUrl.startsWith('data:image/png;base64,') 
-          ? croppedImageUrl.split(',')[1]
-          : croppedImageUrl;
-      }
-      
-      console.log('Sending OCR request with Base64 image (地積測量AI-OCR方式):', {
-        imageBase64Length: imageBase64.length,
+      console.log('Making OCR API call with coordinates:', {
         blockId: block.blockId,
         coordinates: block.coordinates,
         documentId: document?.id,
-        templateId: document?.templateId
+        templateId: document?.templateId,
+        pageNumber: currentPage
       });
       
-      console.log('Making OCR API call...');
+      // 座標を直接APIに送信（クロップ処理はバックエンドで実行）
       const response = await api.post('/api/v1/ocr/extract/block', {
-        imageBase64, // クロップ済みのBase64画像データ
         documentId: document?.id,
         templateId: document?.templateId,
         blockId: block.blockId,
         coordinates: block.coordinates,
+        pageNumber: currentPage,
       });
       
-      console.log('OCR Response received:', response);
-      console.log('OCR Response data:', response.data);
-      console.log('OCR Response status:', response.status);
+      console.log('OCR Response received:', response.data);
       
-      // 結果を更新（デバッグ情報も含める）
+      // 結果を更新
       setSelectedBlocks(prev => {
         const updatedBlocks = prev.map(b => 
           b.blockId === block.blockId && 
@@ -431,28 +272,19 @@ const DocumentDetailPage: React.FC = () => {
             ...b, 
             extractionResult: response.data.content,
             extractionId: response.data.extractionId,
-            croppedImageUrl,
             rawResponse: JSON.stringify(response.data, null, 2),
             isProcessing: false
           } : b
         );
-        console.log('Updated selectedBlocks:', updatedBlocks);
-        console.log('First block details:', updatedBlocks[0]);
-        console.log('First block extractionResult:', updatedBlocks[0]?.extractionResult);
-        console.log('First block isProcessing:', updatedBlocks[0]?.isProcessing);
         return updatedBlocks;
       });
     } catch (err: any) {
       console.error('OCR failed:', err);
-      console.error('Error response data:', err.response?.data);
-      console.error('Error status:', err.response?.status);
       
       // エラーメッセージを設定
       let errorMessage = 'OCR処理中にエラーが発生しました';
       if (err.response?.status === 400) {
-        // NestJSのHttpExceptionレスポンス形式に対応
-        errorMessage = err.response?.data?.message || '選択された範囲が無効です。文字が含まれる領域を選択してください。';
-        console.log('Using 400 error message:', errorMessage);
+        errorMessage = err.response?.data?.message || '選択された範囲が無効です。';
       }
       
       // エラー時も処理中フラグを解除し、エラーメッセージを設定
@@ -583,64 +415,6 @@ const DocumentDetailPage: React.FC = () => {
     }
   };
 
-  // クロップされた画像を生成（地積測量AI-OCR方式）
-  const generateCroppedImage = async (coordinates: { x: number; y: number; width: number; height: number }): Promise<string> => {
-    if (!pageImageUrl) return '';
-    
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const extractCanvas = window.document.createElement('canvas');
-        const ctx = extractCanvas.getContext('2d');
-        if (!ctx) {
-          resolve('');
-          return;
-        }
-        
-        // 出力キャンバスのサイズを設定（実際のクロップサイズ）
-        extractCanvas.width = coordinates.width;
-        extractCanvas.height = coordinates.height;
-        
-        // 実際の画像から選択範囲を切り出し（座標は既に変換済み）
-        ctx.drawImage(
-          img,
-          coordinates.x, coordinates.y, coordinates.width, coordinates.height,
-          0, 0, coordinates.width, coordinates.height
-        );
-        
-        // Base64形式で返す（data:image/png;base64, の部分を含める）
-        const dataUrl = extractCanvas.toDataURL('image/png');
-        resolve(dataUrl);
-      };
-      img.src = pageImageUrl;
-    });
-  };
-
-  const getSelectionStyle = () => {
-    if (!isSelecting || !selectionStart || !selectionEnd || !pageImageUrl) return {};
-    
-    // 画像要素を取得
-    const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
-    if (!imgElement) return {};
-    
-    // ナチュラル座標から表示座標に逆変換
-    const displayStartX = (selectionStart.x / imgElement.naturalWidth) * imgElement.clientWidth;
-    const displayStartY = (selectionStart.y / imgElement.naturalHeight) * imgElement.clientHeight;
-    const displayEndX = (selectionEnd.x / imgElement.naturalWidth) * imgElement.clientWidth;
-    const displayEndY = (selectionEnd.y / imgElement.naturalHeight) * imgElement.clientHeight;
-    
-    return {
-      position: 'absolute' as const,
-      left: Math.min(displayStartX, displayEndX),
-      top: Math.min(displayStartY, displayEndY),
-      width: Math.abs(displayEndX - displayStartX),
-      height: Math.abs(displayEndY - displayStartY),
-      border: '2px dashed #1976d2',
-      backgroundColor: 'rgba(25, 118, 210, 0.1)',
-      pointerEvents: 'none' as const,
-      zIndex: 1000,
-    };
-  };
 
   if (loading) {
     return (
@@ -716,7 +490,7 @@ const DocumentDetailPage: React.FC = () => {
                       </IconButton>
                     </Tooltip>
                     <Typography component="span" sx={{ mx: 1 }}>
-                      {Math.round(zoom * 100)}%
+                      {Math.round(scale * 100)}%
                     </Typography>
                     <Tooltip title="ズームイン">
                       <IconButton onClick={handleZoomIn}>
@@ -729,22 +503,21 @@ const DocumentDetailPage: React.FC = () => {
                   
                   {/* モード切り替えコントロール */}
                   <Box display="flex" alignItems="center">
-                    <Tooltip title="移動モード">
-                      <IconButton 
-                        onClick={() => setInteractionMode('pan')}
-                        color={interactionMode === 'pan' ? 'primary' : 'default'}
-                      >
-                        <PanToolIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="範囲選択モード">
-                      <IconButton 
-                        onClick={() => setInteractionMode('selection')}
-                        color={interactionMode === 'selection' ? 'primary' : 'default'}
-                      >
-                        <SelectionIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <ToggleButtonGroup
+                      value={mode}
+                      exclusive
+                      onChange={handleModeChange}
+                      size="small"
+                    >
+                      <ToggleButton value="move" aria-label="移動">
+                        <PanToolIcon sx={{ mr: 1 }} />
+                        移動
+                      </ToggleButton>
+                      <ToggleButton value="select" aria-label="範囲選択">
+                        <SelectionIcon sx={{ mr: 1 }} />
+                        範囲選択
+                      </ToggleButton>
+                    </ToggleButtonGroup>
                   </Box>
                   
                   <Divider orientation="vertical" flexItem />
@@ -770,164 +543,28 @@ const DocumentDetailPage: React.FC = () => {
               
               {/* 選択範囲のプレビュー（削除済み） */}
 
-              {/* ドキュメントビューア */}
+              {/* PDFビューア */}
               <Box
                 sx={{
                   position: 'relative',
                   overflow: 'hidden',
-                  maxHeight: '70vh',
+                  height: '70vh',
                   backgroundColor: '#f5f5f5',
                   border: '1px solid #ddd',
                 }}
               >
-                {imageLoading ? (
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      height: '400px',
-                      backgroundColor: 'white',
-                      margin: '20px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    <CircularProgress />
-                    <Typography sx={{ ml: 2 }}>画像を読み込み中...</Typography>
-                  </Box>
-                ) : imageError ? (
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      height: '400px',
-                      backgroundColor: 'white',
-                      margin: '20px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    <Alert severity="error">{imageError}</Alert>
-                  </Box>
-                ) : pageImageUrl ? (
-                  <TransformWrapper
-                    ref={transformRef}
-                    disabled={interactionMode === 'selection'}
-                    wheel={{ step: 0.05 }}
-                    minScale={0.5}
-                    maxScale={3}
-                    initialScale={1}
-                    centerOnInit={true}
-                    onTransformed={handleTransformed}
-                  >
-                    <TransformComponent
-                      wrapperStyle={{
-                        width: '100%',
-                        height: '70vh',
-                        cursor: interactionMode === 'selection' && currentBlockType 
-                          ? 'crosshair' 
-                          : interactionMode === 'pan' 
-                          ? 'grab' 
-                          : 'default',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          position: 'relative',
-                          display: 'inline-block',
-                        }}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                      >
-                        <img
-                          src={pageImageUrl}
-                          alt={`Page ${currentPage}`}
-                          style={{
-                            display: 'block',
-                            maxWidth: '100%',
-                            height: 'auto',
-                          }}
-                          onLoad={() => {
-                            console.log('Page image loaded successfully');
-                          }}
-                          onError={() => {
-                            setImageError('画像の表示に失敗しました');
-                          }}
-                        />
-
-                        {/* 選択範囲 */}
-                        {isSelecting && <Box sx={getSelectionStyle()} />}
-
-                        {/* 既存の選択ブロック */}
-                        {selectedBlocks.map((block, index) => {
-                          // ナチュラル座標から表示座標に変換
-                          const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
-                          if (!imgElement) return null;
-                          
-                          // ナチュラル画像座標→表示画像座標の変換
-                          const displayCoordinates = {
-                            x: (block.coordinates.x / imgElement.naturalWidth) * imgElement.clientWidth,
-                            y: (block.coordinates.y / imgElement.naturalHeight) * imgElement.clientHeight,
-                            width: (block.coordinates.width / imgElement.naturalWidth) * imgElement.clientWidth,
-                            height: (block.coordinates.height / imgElement.naturalHeight) * imgElement.clientHeight,
-                          };
-                          
-                          return (
-                            <Box
-                              key={index}
-                              sx={{
-                                position: 'absolute',
-                                left: displayCoordinates.x,
-                                top: displayCoordinates.y,
-                                width: displayCoordinates.width,
-                                height: displayCoordinates.height,
-                                border: block.isProcessing ? '2px solid #ff9800' : '2px solid #4caf50',
-                                backgroundColor: block.isProcessing 
-                                  ? 'rgba(255, 152, 0, 0.1)' 
-                                  : 'rgba(76, 175, 80, 0.1)',
-                              }}
-                            />
-                          );
-                        })}
-                      </Box>
-                    </TransformComponent>
-                  </TransformWrapper>
-                ) : (
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: '400px',
-                      backgroundColor: 'white',
-                      position: 'relative',
-                      margin: '20px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography color="text.secondary">
-                      画像が利用できません
-                    </Typography>
-                  </Box>
-                )}
+                <PdfViewer
+                  file={pdfUrl}
+                  scale={scale}
+                  mode={mode}
+                  onLoadSuccess={(numPages) => {
+                    console.log('PDF loaded with', numPages, 'pages');
+                  }}
+                  onPageChange={handlePageChange}
+                  onSelectionComplete={handleSelectionComplete}
+                />
               </Box>
 
-              {/* ページナビゲーション */}
-              {document.pageCount > 1 && (
-                <Box display="flex" justifyContent="center" alignItems="center" mt={2}>
-                  <IconButton onClick={handlePreviousPage} disabled={currentPage === 1}>
-                    <NavigateBeforeIcon />
-                  </IconButton>
-                  <Typography sx={{ mx: 2 }}>
-                    {currentPage} / {document.pageCount}
-                  </Typography>
-                  <IconButton onClick={handleNextPage} disabled={currentPage === document.pageCount}>
-                    <NavigateNextIcon />
-                  </IconButton>
-                </Box>
-              )}
             </Paper>
           </Grid>
 
@@ -938,19 +575,19 @@ const DocumentDetailPage: React.FC = () => {
                 <Typography variant="h6" gutterBottom>
                   範囲ブロック選択
                 </Typography>
-                {interactionMode === 'selection' && !currentBlockType && (
+                {mode === 'select' && !currentBlockType && (
                   <Typography variant="body2" color="primary" sx={{ mb: 2 }}>
                     範囲選択モードです。抽出したいブロックタイプを選択してください。
                   </Typography>
                 )}
-                {interactionMode === 'selection' && currentBlockType && (
+                {mode === 'select' && currentBlockType && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    💡 ヒント：文字が含まれる領域を十分な大きさで選択してください。空白部分だけを選択するとエラーになります。
+                    💡 ヒント：文字が含まれる領域を十分な大きさで選択してください。
                   </Typography>
                 )}
-                {interactionMode === 'pan' && (
+                {mode === 'move' && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    移動モードです。画像をパン・ズームできます。
+                    移動モードです。PDFをパン・ズームできます。
                   </Typography>
                 )}
                 {document.template?.blocks?.map((block) => (
@@ -962,9 +599,7 @@ const DocumentDetailPage: React.FC = () => {
                     onClick={() => {
                       setCurrentBlockType(block.block_id);
                       // ブロックを選択したら自動的に範囲選択モードに切り替え
-                      setInteractionMode('selection');
-                      // 新しいブロックタイプ選択時にプレビューをクリア
-                      setSelectionPreview(null);
+                      setMode('select');
                     }}
                   >
                     {block.label}
