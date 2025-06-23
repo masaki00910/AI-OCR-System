@@ -82,14 +82,13 @@ const DocumentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [document, setDocument] = useState<Document | null>(null);
+  const [documentData, setDocumentData] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
   const [currentBlockType, setCurrentBlockType] = useState<string>('');
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [mode, setMode] = useState<'move' | 'select'>('move');
   
   // UI制御のステート
@@ -111,15 +110,12 @@ const DocumentDetailPage: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (document?.id) {
-      console.log('Document loaded, setting PDF URL');
-      // PDFの直接URLを設定
-      const pdfProxyUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/documents/${document.id}/pdf`;
-      setPdfUrl(pdfProxyUrl);
+    if (documentData?.id) {
+      console.log('Document loaded, loading page images');
       // 既存の抽出結果をロード
       fetchExistingExtractions();
     }
-  }, [document]);
+  }, [documentData]);
 
   // Cleanup (no longer needed for blob URLs since we're using PDF directly)
 
@@ -129,12 +125,12 @@ const DocumentDetailPage: React.FC = () => {
       setLoading(true);
       const response = await api.get(`/api/v1/documents/${id}`);
       console.log('Document API response:', response.data);
-      setDocument(response.data);
+      setDocumentData(response.data);
       
       // テンプレート情報も取得
       if (response.data.templateId) {
         const templateResponse = await api.get(`/api/v1/templates/${response.data.templateId}`);
-        setDocument({
+        setDocumentData({
           ...response.data,
           template: templateResponse.data,
         });
@@ -148,14 +144,14 @@ const DocumentDetailPage: React.FC = () => {
 
 
   const fetchExistingExtractions = async () => {
-    if (!document?.id) {
+    if (!documentData?.id) {
       console.log('No document ID, skipping extraction fetch');
       return;
     }
 
     try {
-      console.log('Fetching existing extractions for document:', document.id);
-      const response = await api.get(`/api/v1/ocr/documents/${document.id}/extractions`);
+      console.log('Fetching existing extractions for document:', documentData.id);
+      const response = await api.get(`/api/v1/ocr/documents/${documentData.id}/extractions`);
       const extractions = response.data;
       
       console.log('Existing extractions found:', extractions);
@@ -192,8 +188,8 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const handleNextPage = () => {
-    if (document) {
-      setCurrentPage(prev => Math.min(prev + 1, document.pageCount));
+    if (documentData) {
+      setCurrentPage(prev => Math.min(prev + 1, documentData.pageCount));
     }
   };
 
@@ -235,6 +231,84 @@ const DocumentDetailPage: React.FC = () => {
   };
 
 
+  // 画像クロップ・Base64エンコード機能
+  const cropImageFromSelection = async (coordinates: { x: number; y: number; width: number; height: number }): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 現在のページ画像を取得
+        const response = await api.get(`/api/v1/documents/${documentData?.id}/pages/${currentPage}`, {
+          responseType: 'blob'
+        });
+        
+        const blob = new Blob([response.data], { type: 'image/png' });
+        const imageUrl = URL.createObjectURL(blob);
+        
+        // Image要素を作成してロード
+        const img = new Image();
+        img.onload = () => {
+          try {
+            // Canvas要素を作成
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              reject(new Error('Canvas context not available'));
+              return;
+            }
+            
+            // スケールファクターを計算（表示サイズ vs 実際の画像サイズ）
+            const scaleX = img.naturalWidth / (img.naturalWidth * scale);
+            const scaleY = img.naturalHeight / (img.naturalHeight * scale);
+            
+            // 実際の画像座標に変換
+            const actualX = coordinates.x / scale;
+            const actualY = coordinates.y / scale;
+            const actualWidth = coordinates.width / scale;
+            const actualHeight = coordinates.height / scale;
+            
+            // Canvas サイズを選択範囲に設定
+            canvas.width = actualWidth;
+            canvas.height = actualHeight;
+            
+            // 選択範囲を描画
+            ctx.drawImage(
+              img,
+              actualX, actualY, actualWidth, actualHeight, // ソース座標・サイズ
+              0, 0, actualWidth, actualHeight // 描画座標・サイズ
+            );
+            
+            // Canvas を Base64 に変換
+            const base64 = canvas.toDataURL('image/png').split(',')[1];
+            
+            // URL をクリーンアップ
+            URL.revokeObjectURL(imageUrl);
+            
+            console.log('Image cropped successfully:', {
+              originalSize: { width: img.naturalWidth, height: img.naturalHeight },
+              cropArea: { actualX, actualY, actualWidth, actualHeight },
+              croppedSize: { width: actualWidth, height: actualHeight },
+              base64Length: base64.length
+            });
+            
+            resolve(base64);
+          } catch (error) {
+            URL.revokeObjectURL(imageUrl);
+            reject(error);
+          }
+        };
+        
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl);
+          reject(new Error('Failed to load image'));
+        };
+        
+        img.src = imageUrl;
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
   const performOCR = async (block: SelectedBlock) => {
     try {
       // 処理中ステートを更新
@@ -247,18 +321,23 @@ const DocumentDetailPage: React.FC = () => {
       console.log('Making OCR API call with coordinates:', {
         blockId: block.blockId,
         coordinates: block.coordinates,
-        documentId: document?.id,
-        templateId: document?.templateId,
+        documentId: documentData?.id,
+        templateId: documentData?.templateId,
         pageNumber: currentPage
       });
       
-      // 座標を直接APIに送信（クロップ処理はバックエンドで実行）
+      // フロントエンドで画像をクロップしてBase64エンコード
+      console.log('Cropping image from selection...');
+      const croppedImageBase64 = await cropImageFromSelection(block.coordinates);
+      console.log('Image cropped successfully, base64 length:', croppedImageBase64.length);
+      
+      // クロップされた画像をBase64として送信
       const response = await api.post('/api/v1/ocr/extract/block', {
-        documentId: document?.id,
-        templateId: document?.templateId,
+        imageBase64: croppedImageBase64,
+        documentId: documentData?.id,
+        templateId: documentData?.templateId,
         blockId: block.blockId,
         coordinates: block.coordinates,
-        pageNumber: currentPage,
       });
       
       console.log('OCR Response received:', response.data);
@@ -273,6 +352,7 @@ const DocumentDetailPage: React.FC = () => {
             extractionResult: response.data.content,
             extractionId: response.data.extractionId,
             rawResponse: JSON.stringify(response.data, null, 2),
+            croppedImageUrl: `data:image/png;base64,${croppedImageBase64}`, // デバッグ用
             isProcessing: false
           } : b
         );
@@ -285,6 +365,8 @@ const DocumentDetailPage: React.FC = () => {
       let errorMessage = 'OCR処理中にエラーが発生しました';
       if (err.response?.status === 400) {
         errorMessage = err.response?.data?.message || '選択された範囲が無効です。';
+      } else if (err.message?.includes('Canvas') || err.message?.includes('image')) {
+        errorMessage = '画像の処理中にエラーが発生しました。範囲を再選択してください。';
       }
       
       // エラー時も処理中フラグを解除し、エラーメッセージを設定
@@ -341,8 +423,7 @@ const DocumentDetailPage: React.FC = () => {
         setEditingBlock(null);
       }
 
-      // 削除時にプレビューもクリア
-      setSelectionPreview(null);
+      // 削除完了
     } catch (error) {
       console.error('Failed to delete extraction:', error);
       // エラーがあってもフロントエンドからは削除する
@@ -426,7 +507,7 @@ const DocumentDetailPage: React.FC = () => {
     );
   }
 
-  if (error || !document) {
+  if (error || !documentData) {
     return (
       <Container>
         <Alert severity="error" sx={{ mt: 3 }}>
@@ -451,7 +532,7 @@ const DocumentDetailPage: React.FC = () => {
           <Grid item xs={12} md={8}>
             <Paper sx={{ p: 2 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h5">{document.fileName}</Typography>
+                <Typography variant="h5">{documentData.fileName}</Typography>
                 <Box display="flex" alignItems="center" gap={2}>
                   {/* ページナビゲーション */}
                   <Box display="flex" alignItems="center">
@@ -466,13 +547,13 @@ const DocumentDetailPage: React.FC = () => {
                       </span>
                     </Tooltip>
                     <Typography component="span" sx={{ mx: 1 }}>
-                      {currentPage} / {document.pageCount}
+                      {currentPage} / {documentData.pageCount}
                     </Typography>
                     <Tooltip title="次のページ">
                       <span>
                         <IconButton 
                           onClick={handleNextPage} 
-                          disabled={currentPage >= document.pageCount}
+                          disabled={currentPage >= documentData.pageCount}
                         >
                           <NavigateNextIcon />
                         </IconButton>
@@ -554,12 +635,11 @@ const DocumentDetailPage: React.FC = () => {
                 }}
               >
                 <PdfViewer
-                  file={pdfUrl}
+                  documentId={documentData.id}
+                  pageCount={documentData.pageCount}
+                  currentPage={currentPage}
                   scale={scale}
                   mode={mode}
-                  onLoadSuccess={(numPages) => {
-                    console.log('PDF loaded with', numPages, 'pages');
-                  }}
                   onPageChange={handlePageChange}
                   onSelectionComplete={handleSelectionComplete}
                 />
@@ -590,7 +670,7 @@ const DocumentDetailPage: React.FC = () => {
                     移動モードです。PDFをパン・ズームできます。
                   </Typography>
                 )}
-                {document.template?.blocks?.map((block) => (
+                {documentData.template?.blocks?.map((block) => (
                   <Button
                     key={block.block_id}
                     variant={currentBlockType === block.block_id ? 'contained' : 'outlined'}
@@ -610,7 +690,7 @@ const DocumentDetailPage: React.FC = () => {
 
             {/* 承認セクション */}
             <Box sx={{ mb: 2 }}>
-              <ApprovalSection documentId={document.id} />
+              <ApprovalSection documentId={documentData.id} />
             </Box>
 
             {/* 選択済みブロック一覧 */}
