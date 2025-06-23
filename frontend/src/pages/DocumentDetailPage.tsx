@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -35,7 +35,7 @@ import {
   BugReport as BugReportIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { api, documentApi } from '../services/api';
 import OcrResultEditor from '../components/OcrResultEditor';
 import ApprovalSection from '../components/ApprovalSection';
@@ -85,6 +85,8 @@ const DocumentDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(1);
+  const [transformState, setTransformState] = useState({ scale: 1, positionX: 0, positionY: 0 });
+  const transformRef = useRef<ReactZoomPanPinchRef>(null);
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
@@ -226,11 +228,25 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.25, 3));
+    if (transformRef.current) {
+      transformRef.current.zoomIn(0.25);
+    }
   };
 
   const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.25, 0.5));
+    if (transformRef.current) {
+      transformRef.current.zoomOut(0.25);
+    }
+  };
+
+  const handleTransformed = (ref: ReactZoomPanPinchRef, state: any) => {
+    const newScale = state.scale;
+    setZoom(newScale);
+    setTransformState({
+      scale: state.scale,
+      positionX: state.positionX,
+      positionY: state.positionY
+    });
   };
 
   const handlePreviousPage = () => {
@@ -249,14 +265,33 @@ const DocumentDetailPage: React.FC = () => {
       return;
     }
     
-    const currentRect = e.currentTarget.getBoundingClientRect();
-    const startX = e.clientX - currentRect.left;
-    const startY = e.clientY - currentRect.top;
+    // 画像要素を取得
+    const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
+    if (!imgElement) {
+      console.error('Image element not found for coordinate calculation');
+      return;
+    }
     
-    setMouseDownData({ clientX: e.clientX, clientY: e.clientY, rect: currentRect });
+    // 画像要素の境界矩形を取得（拡大縮小済みの実際の表示位置）
+    const imgRect = imgElement.getBoundingClientRect();
+    
+    // 画像要素内での相対座標を計算
+    const relativeX = e.clientX - imgRect.left;
+    const relativeY = e.clientY - imgRect.top;
+    
+    // 画像のナチュラルサイズへの座標変換
+    const actualX = (relativeX / imgElement.clientWidth) * imgElement.naturalWidth;
+    const actualY = (relativeY / imgElement.clientHeight) * imgElement.naturalHeight;
+    
+    console.log('Mouse down - Client coordinates:', e.clientX, e.clientY);
+    console.log('Image rect:', imgRect);
+    console.log('Relative coordinates:', relativeX, relativeY);
+    console.log('Natural coordinates:', actualX, actualY);
+    
+    setMouseDownData({ clientX: e.clientX, clientY: e.clientY, rect: imgRect });
     setIsSelecting(true);
-    setSelectionStart({ x: startX, y: startY });
-    setSelectionEnd({ x: startX, y: startY }); // Initially, end is same as start
+    setSelectionStart({ x: actualX, y: actualY });
+    setSelectionEnd({ x: actualX, y: actualY }); // Initially, end is same as start
     
     // イベント伝播を停止して、他のイベントハンドラーとの競合を防ぐ
     e.preventDefault();
@@ -266,12 +301,24 @@ const DocumentDetailPage: React.FC = () => {
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isSelecting || !selectionStart || !mouseDownData || interactionMode !== 'selection') return;
     
-    // Use the rect from mouseDownData for consistent relative coordinate calculation
-    const { rect } = mouseDownData;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // 画像要素を取得
+    const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
+    if (!imgElement) {
+      return;
+    }
+    
+    // 画像要素の境界矩形を取得（現在の実際の表示位置）
+    const imgRect = imgElement.getBoundingClientRect();
+    
+    // 画像要素内での相対座標を計算
+    const relativeX = e.clientX - imgRect.left;
+    const relativeY = e.clientY - imgRect.top;
+    
+    // 画像のナチュラルサイズへの座標変換
+    const actualX = (relativeX / imgElement.clientWidth) * imgElement.naturalWidth;
+    const actualY = (relativeY / imgElement.clientHeight) * imgElement.naturalHeight;
 
-    setSelectionEnd({ x, y });
+    setSelectionEnd({ x: actualX, y: actualY });
     
     e.preventDefault();
     e.stopPropagation();
@@ -280,47 +327,15 @@ const DocumentDetailPage: React.FC = () => {
   const handleMouseUp = async (e?: React.MouseEvent<HTMLDivElement>) => {
     if (!isSelecting || !selectionStart || !selectionEnd || !currentBlockType || interactionMode !== 'selection' || !mouseDownData) return;
     
-    const displayCoordinates = {
+    // 選択範囲の座標（既にナチュラルサイズに変換済み）
+    const coordinates = {
       x: Math.min(selectionStart.x, selectionEnd.x),
       y: Math.min(selectionStart.y, selectionEnd.y),
       width: Math.abs(selectionEnd.x - selectionStart.x),
       height: Math.abs(selectionEnd.y - selectionStart.y),
     };
     
-    // 画像要素を取得（window.documentを明示的に使用）
-    const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
-    if (!imgElement) {
-      console.error('Image element not found');
-      return;
-    }
-    
-    // 地積測量AI-OCR方式の座標変換
-    // 実際の画像サイズ（ナチュラルサイズ）
-    const imageWidth = imgElement.naturalWidth;
-    const imageHeight = imgElement.naturalHeight;
-    
-    // 表示サイズ
-    const displayWidth = imgElement.clientWidth;
-    const displayHeight = imgElement.clientHeight;
-    
-    // スケール比を計算（地積測量AI-OCR方式）
-    const scaleX = imageWidth / displayWidth;
-    const scaleY = imageHeight / displayHeight;
-    
-    console.log('Image natural size:', imageWidth, 'x', imageHeight);
-    console.log('Image display size:', displayWidth, 'x', displayHeight);
-    console.log('Scale ratios (地積測量AI-OCR方式):', scaleX, scaleY);
-    console.log('Display coordinates:', displayCoordinates);
-    
-    // 選択範囲を実際の画像座標に変換（地積測量AI-OCR方式）
-    const coordinates = {
-      x: displayCoordinates.x * scaleX,
-      y: displayCoordinates.y * scaleY,
-      width: displayCoordinates.width * scaleX,
-      height: displayCoordinates.height * scaleY,
-    };
-    
-    console.log('Actual coordinates (地積測量AI-OCR方式):', coordinates);
+    console.log('Mouse up - Final coordinates for OCR:', coordinates);
     
     // 最小サイズチェック（実際の画像座標で）
     if (coordinates.width > 50 && coordinates.height > 50) {
@@ -602,14 +617,24 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const getSelectionStyle = () => {
-    if (!isSelecting || !selectionStart || !selectionEnd) return {};
+    if (!isSelecting || !selectionStart || !selectionEnd || !pageImageUrl) return {};
+    
+    // 画像要素を取得
+    const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
+    if (!imgElement) return {};
+    
+    // ナチュラル座標から表示座標に逆変換
+    const displayStartX = (selectionStart.x / imgElement.naturalWidth) * imgElement.clientWidth;
+    const displayStartY = (selectionStart.y / imgElement.naturalHeight) * imgElement.clientHeight;
+    const displayEndX = (selectionEnd.x / imgElement.naturalWidth) * imgElement.clientWidth;
+    const displayEndY = (selectionEnd.y / imgElement.naturalHeight) * imgElement.clientHeight;
     
     return {
       position: 'absolute' as const,
-      left: Math.min(selectionStart.x, selectionEnd.x),
-      top: Math.min(selectionStart.y, selectionEnd.y),
-      width: Math.abs(selectionEnd.x - selectionStart.x),
-      height: Math.abs(selectionEnd.y - selectionStart.y),
+      left: Math.min(displayStartX, displayEndX),
+      top: Math.min(displayStartY, displayEndY),
+      width: Math.abs(displayEndX - displayStartX),
+      height: Math.abs(displayEndY - displayStartY),
       border: '2px dashed #1976d2',
       backgroundColor: 'rgba(25, 118, 210, 0.1)',
       pointerEvents: 'none' as const,
@@ -786,12 +811,14 @@ const DocumentDetailPage: React.FC = () => {
                   </Box>
                 ) : pageImageUrl ? (
                   <TransformWrapper
+                    ref={transformRef}
                     disabled={interactionMode === 'selection'}
                     wheel={{ step: 0.05 }}
                     minScale={0.5}
                     maxScale={3}
                     initialScale={1}
                     centerOnInit={true}
+                    onTransformed={handleTransformed}
                   >
                     <TransformComponent
                       wrapperStyle={{
@@ -834,24 +861,16 @@ const DocumentDetailPage: React.FC = () => {
 
                         {/* 既存の選択ブロック */}
                         {selectedBlocks.map((block, index) => {
-                          // 実際の座標から表示座標に変換（地積測量AI-OCR方式）
+                          // ナチュラル座標から表示座標に変換
                           const imgElement = window.document.querySelector(`img[src="${pageImageUrl}"]`) as HTMLImageElement;
                           if (!imgElement) return null;
                           
-                          // 地積測量AI-OCR方式の座標変換（逆変換）
-                          const imageWidth = imgElement.naturalWidth;
-                          const imageHeight = imgElement.naturalHeight;
-                          const displayWidth = imgElement.clientWidth;
-                          const displayHeight = imgElement.clientHeight;
-                          
-                          const scaleX = imageWidth / displayWidth;
-                          const scaleY = imageHeight / displayHeight;
-                          
+                          // ナチュラル画像座標→表示画像座標の変換
                           const displayCoordinates = {
-                            x: block.coordinates.x / scaleX,
-                            y: block.coordinates.y / scaleY,
-                            width: block.coordinates.width / scaleX,
-                            height: block.coordinates.height / scaleY,
+                            x: (block.coordinates.x / imgElement.naturalWidth) * imgElement.clientWidth,
+                            y: (block.coordinates.y / imgElement.naturalHeight) * imgElement.clientHeight,
+                            width: (block.coordinates.width / imgElement.naturalWidth) * imgElement.clientWidth,
+                            height: (block.coordinates.height / imgElement.naturalHeight) * imgElement.clientHeight,
                           };
                           
                           return (
