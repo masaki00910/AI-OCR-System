@@ -1,87 +1,107 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
 import { Box, CircularProgress, Typography, IconButton, TextField } from '@mui/material';
 import { NavigateBefore, NavigateNext } from '@mui/icons-material';
 import { DrawingLayer } from './DrawingLayer';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
-
-// PDF.js workerの設定
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+import { api } from '../services/api';
 
 interface PdfViewerProps {
-  file: string | File | null;
+  documentId: string | null;
+  pageCount: number;
+  currentPage: number;
   scale: number;
   mode: 'select' | 'move';
-  onLoadSuccess?: (numPages: number) => void;
   onPageChange?: (pageNumber: number) => void;
   onSelectionComplete?: (selection: any) => void;
 }
 
 export default function PdfViewer({ 
-  file, 
+  documentId, 
+  pageCount,
+  currentPage,
   scale = 1.0,
   mode,
-  onLoadSuccess,
   onPageChange,
   onSelectionComplete
 }: PdfViewerProps) {
-  const [numPages, setNumPages] = useState<number | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const pageRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const handleLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-    setLoading(false);
-    onLoadSuccess?.(numPages);
-  }, [onLoadSuccess]);
-
-  const handlePageLoadSuccess = useCallback(() => {
-    // ページサイズを取得
-    if (pageRef.current) {
-      const canvas = pageRef.current.querySelector('canvas');
-      if (canvas) {
-        setPageSize({
-          width: canvas.width / window.devicePixelRatio,
-          height: canvas.height / window.devicePixelRatio,
-        });
+  // ページ画像を取得
+  const fetchPageImage = useCallback(async () => {
+    if (!documentId) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // 既存の画像URLをクリーンアップ
+      if (pageImageUrl) {
+        URL.revokeObjectURL(pageImageUrl);
+        setPageImageUrl(null);
       }
-    }
-  }, []);
 
-  // スケールが変更されたときにページサイズを再計算
+      const response = await api.get(`/api/v1/documents/${documentId}/pages/${currentPage}`, {
+        responseType: 'blob'
+      });
+      
+      // Blob URLを作成
+      const blob = new Blob([response.data], { type: 'image/png' });
+      const imageUrl = URL.createObjectURL(blob);
+      
+      setPageImageUrl(imageUrl);
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Failed to fetch page image:', err);
+      setError('ページ画像の取得に失敗しました');
+      setLoading(false);
+    }
+  }, [documentId, currentPage]);
+
+  // ページまたはドキュメントが変更されたときに画像を取得
   useEffect(() => {
-    if (pageRef.current) {
-      const canvas = pageRef.current.querySelector('canvas');
-      if (canvas) {
-        setPageSize({
-          width: canvas.width / window.devicePixelRatio,
-          height: canvas.height / window.devicePixelRatio,
-        });
-      }
-    }
-    // スケール変更時に位置をリセット
+    fetchPageImage();
+  }, [fetchPageImage]);
+
+  // 画像ロード時のサイズ取得
+  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.target as HTMLImageElement;
+    setPageSize({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    });
+  };
+
+  // スケール変更時に位置をリセット
+  useEffect(() => {
     setPosition({ x: 0, y: 0 });
   }, [scale]);
 
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (pageImageUrl) {
+        URL.revokeObjectURL(pageImageUrl);
+      }
+    };
+  }, [pageImageUrl]);
+
 
   const changePage = (offset: number) => {
-    const newPage = pageNumber + offset;
-    if (newPage >= 1 && newPage <= (numPages || 1)) {
-      setPageNumber(newPage);
+    const newPage = currentPage + offset;
+    if (newPage >= 1 && newPage <= pageCount) {
       onPageChange?.(newPage);
     }
   };
 
   const handlePageInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value, 10);
-    if (value >= 1 && value <= (numPages || 1)) {
-      setPageNumber(value);
+    if (value >= 1 && value <= pageCount) {
       onPageChange?.(value);
     }
   };
@@ -114,7 +134,7 @@ export default function PdfViewer({
     setIsDragging(false);
   };
 
-  if (!file) {
+  if (!documentId) {
     return (
       <Box
         sx={{
@@ -125,7 +145,7 @@ export default function PdfViewer({
           color: 'text.secondary',
         }}
       >
-        <Typography>PDFファイルを選択してください</Typography>
+        <Typography>ドキュメントが選択されていません</Typography>
       </Box>
     );
   }
@@ -157,41 +177,76 @@ export default function PdfViewer({
         </Box>
       )}
 
-      <Box 
-        ref={pageRef} 
-        sx={{ 
-          position: 'relative', 
-          display: 'inline-block',
-          transform: `translate(${position.x}px, ${position.y}px)`,
-          transition: isDragging ? 'none' : 'transform 0.1s',
-        }}>
-        <Document
-          file={file}
-          onLoadSuccess={handleLoadSuccess}
-          loading=""
+      {loading ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '400px',
+          }}
         >
-          <Page
-            pageNumber={pageNumber}
-            scale={scale}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            onLoadSuccess={handlePageLoadSuccess}
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>画像を読み込み中...</Typography>
+        </Box>
+      ) : error ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '400px',
+          }}
+        >
+          <Typography color="error">{error}</Typography>
+        </Box>
+      ) : pageImageUrl ? (
+        <Box 
+          ref={pageRef} 
+          sx={{ 
+            position: 'relative', 
+            display: 'inline-block',
+            transform: `translate(${position.x}px, ${position.y}px)`,
+            transition: isDragging ? 'none' : 'transform 0.1s',
+          }}>
+          <img
+            src={pageImageUrl}
+            alt={`Page ${currentPage}`}
+            style={{
+              display: 'block',
+              width: `${pageSize.width * scale}px`,
+              height: `${pageSize.height * scale}px`,
+              maxWidth: 'none',
+            }}
+            onLoad={handleImageLoad}
+            onError={() => setError('画像の読み込みに失敗しました')}
           />
-        </Document>
-        
-        {pageSize.width > 0 && pageSize.height > 0 && (
-          <Box sx={{ position: 'absolute', top: 0, left: 0 }}>
-            <DrawingLayer
-              width={pageSize.width * scale}
-              height={pageSize.height * scale}
-              mode={mode}
-              onSelectionComplete={onSelectionComplete || (() => {})}
-            />
-          </Box>
-        )}
-      </Box>
+          
+          {pageSize.width > 0 && pageSize.height > 0 && (
+            <Box sx={{ position: 'absolute', top: 0, left: 0 }}>
+              <DrawingLayer
+                width={pageSize.width * scale}
+                height={pageSize.height * scale}
+                mode={mode}
+                onSelectionComplete={onSelectionComplete || (() => {})}
+              />
+            </Box>
+          )}
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '400px',
+          }}
+        >
+          <Typography color="text.secondary">画像が利用できません</Typography>
+        </Box>
+      )}
 
-      {numPages && numPages > 1 && (
+      {pageCount > 1 && (
         <Box
           sx={{
             position: 'absolute',
@@ -210,7 +265,7 @@ export default function PdfViewer({
           <IconButton
             size="small"
             onClick={() => changePage(-1)}
-            disabled={pageNumber <= 1}
+            disabled={currentPage <= 1}
           >
             <NavigateBefore />
           </IconButton>
@@ -219,22 +274,22 @@ export default function PdfViewer({
             <TextField
               size="small"
               type="number"
-              value={pageNumber}
+              value={currentPage}
               onChange={handlePageInputChange}
               inputProps={{
                 min: 1,
-                max: numPages,
+                max: pageCount,
                 style: { width: '3em', textAlign: 'center' }
               }}
               variant="standard"
             />
-            <Typography variant="body2">/ {numPages}</Typography>
+            <Typography variant="body2">/ {pageCount}</Typography>
           </Box>
 
           <IconButton
             size="small"
             onClick={() => changePage(1)}
-            disabled={pageNumber >= numPages}
+            disabled={currentPage >= pageCount}
           >
             <NavigateNext />
           </IconButton>
