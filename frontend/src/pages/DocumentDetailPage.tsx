@@ -89,6 +89,8 @@ const DocumentDetailPage: React.FC = () => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
+  // Store the initial clientX/Y and the bounding rect at mouse down
+  const [mouseDownData, setMouseDownData] = useState<{ clientX: number, clientY: number, rect: DOMRect } | null>(null);
   const [currentBlockType, setCurrentBlockType] = useState<string>('');
   const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -247,13 +249,14 @@ const DocumentDetailPage: React.FC = () => {
       return;
     }
     
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const currentRect = e.currentTarget.getBoundingClientRect();
+    const startX = e.clientX - currentRect.left;
+    const startY = e.clientY - currentRect.top;
     
+    setMouseDownData({ clientX: e.clientX, clientY: e.clientY, rect: currentRect });
     setIsSelecting(true);
-    setSelectionStart({ x, y });
-    setSelectionEnd({ x, y });
+    setSelectionStart({ x: startX, y: startY });
+    setSelectionEnd({ x: startX, y: startY }); // Initially, end is same as start
     
     // イベント伝播を停止して、他のイベントハンドラーとの競合を防ぐ
     e.preventDefault();
@@ -261,12 +264,13 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isSelecting || !selectionStart || interactionMode !== 'selection') return;
+    if (!isSelecting || !selectionStart || !mouseDownData || interactionMode !== 'selection') return;
     
-    const rect = e.currentTarget.getBoundingClientRect();
+    // Use the rect from mouseDownData for consistent relative coordinate calculation
+    const { rect } = mouseDownData;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     setSelectionEnd({ x, y });
     
     e.preventDefault();
@@ -274,9 +278,8 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const handleMouseUp = async (e?: React.MouseEvent<HTMLDivElement>) => {
-    if (!isSelecting || !selectionStart || !selectionEnd || !currentBlockType || interactionMode !== 'selection') return;
+    if (!isSelecting || !selectionStart || !selectionEnd || !currentBlockType || interactionMode !== 'selection' || !mouseDownData) return;
     
-    // 表示座標を取得
     const displayCoordinates = {
       x: Math.min(selectionStart.x, selectionEnd.x),
       y: Math.min(selectionStart.y, selectionEnd.y),
@@ -343,6 +346,7 @@ const DocumentDetailPage: React.FC = () => {
     setIsSelecting(false);
     setSelectionStart(null);
     setSelectionEnd(null);
+    setMouseDownData(null); // Clear mouseDownData
     
     if (e) {
       e.preventDefault();
