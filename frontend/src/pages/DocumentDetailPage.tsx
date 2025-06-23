@@ -707,7 +707,7 @@ const DocumentDetailPage: React.FC = () => {
                   selectedBlocks.map((block, index) => {
                     console.log(`Rendering block ${index}:`, block);
                     console.log(`Block isProcessing: ${block.isProcessing}, extractionResult:`, block.extractionResult);
-                    const blockDef = document.template?.blocks?.find(b => b.block_id === block.blockId);
+                    const blockDef = documentData.template?.blocks?.find(b => b.block_id === block.blockId);
                     return (
                       <Box key={index} sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
@@ -824,7 +824,7 @@ const DocumentDetailPage: React.FC = () => {
                               );
                             } else {
                               // デフォルトで点検補正エディターを表示
-                              const blockDef = document?.template?.blocks?.find(b => b.block_id === block.blockId);
+                              const blockDef = documentData?.template?.blocks?.find(b => b.block_id === block.blockId);
                               if (blockDef) {
                                 return (
                                   <OcrResultEditor
