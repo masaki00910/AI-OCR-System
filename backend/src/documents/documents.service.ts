@@ -382,8 +382,6 @@ export class DocumentsService {
         saveFilename: 'page',   
         savePath: '/tmp',       
         format: 'png',          
-        width: 2000,            // 最大幅
-        height: 2800            // 最大高さ
       });
 
       // 指定ページのみを変換
