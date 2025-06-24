@@ -25,7 +25,7 @@ import { UserRole } from '../entities/user.entity';
 @ApiTags('workflows')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('workflows')
+@Controller('api/v1/workflows')
 export class WorkflowsController {
   constructor(private readonly workflowsService: WorkflowsService) {}
 
