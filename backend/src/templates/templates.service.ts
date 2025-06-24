@@ -124,7 +124,7 @@ export class TemplatesService {
   ): Promise<{ templates: Template[]; total: number }> {
     const query = this.templateRepository.createQueryBuilder('template')
       .where('template.tenantId = :tenantId', { tenantId })
-      .leftJoinAndSelect('template.promptTemplates', 'prompts')
+      .leftJoinAndSelect('template.promptTemplates', 'prompts', 'prompts.deleted_at IS NULL')
       .orderBy('template.createdAt', 'DESC');
 
     if (options?.isActive !== undefined) {
@@ -145,10 +145,17 @@ export class TemplatesService {
   }
 
   async findOne(id: string, tenantId: string): Promise<Template> {
-    const template = await this.templateRepository.findOne({
-      where: { id, tenantId },
-      relations: ['promptTemplates', 'createdBy'],
-    });
+    const template = await this.templateRepository
+      .createQueryBuilder('template')
+      .where('template.id = :id', { id })
+      .andWhere('template.tenantId = :tenantId', { tenantId })
+      .leftJoinAndSelect(
+        'template.promptTemplates',
+        'prompts',
+        'prompts.deleted_at IS NULL',
+      )
+      .leftJoinAndSelect('template.createdBy', 'createdBy')
+      .getOne();
 
     if (!template) {
       throw new NotFoundException('Template not found');
@@ -388,7 +395,10 @@ export class TemplatesService {
       throw new NotFoundException('Prompt template not found');
     }
 
-    await this.promptTemplateRepository.remove(prompt);
+    // Create a plain object for the audit log to avoid circular references
+    const { template, ...oldValuesForAudit } = prompt;
+
+    await this.promptTemplateRepository.softDelete(prompt.id);
 
     // Create audit log
     await this.createAuditLog(
@@ -397,8 +407,8 @@ export class TemplatesService {
       'prompt_templates',
       promptId,
       AuditOperation.DELETE,
-      prompt,
-      null,
+      oldValuesForAudit,
+      { deleted_at: new Date() },
     );
   }
 

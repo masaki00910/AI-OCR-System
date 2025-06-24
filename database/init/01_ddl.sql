@@ -62,6 +62,7 @@ CREATE TABLE prompt_templates (
   content TEXT NOT NULL,
   sequence_order INT DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

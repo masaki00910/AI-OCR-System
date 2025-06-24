@@ -7,6 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  DeleteDateColumn,
 } from 'typeorm';
 import { Template } from './template.entity';
 
@@ -43,6 +44,9 @@ export class PromptTemplate {
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

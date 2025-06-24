@@ -31,6 +31,7 @@ import {
   Preview,
   FilterList,
 } from '@mui/icons-material';
+import { deletePromptTemplate } from '../services/api';
 
 interface PromptTemplate {
   id?: string;
@@ -111,11 +112,23 @@ const PromptTemplateEditor: React.FC<PromptTemplateEditorProps> = ({
     }
   }, [editDialog]);
 
-  const deletePrompt = (index: number) => {
-    const newPrompts = prompts.filter((_, i) => i !== index);
-    // Reorder sequence
-    const reordered = newPrompts.map((p, i) => ({ ...p, sequenceOrder: i }));
-    onChange(reordered);
+  const handleDeletePrompt = async (promptToDelete: PromptTemplate) => {
+    // If the prompt doesn't have an ID, it hasn't been saved to the backend yet.
+    // We can just remove it from the local state.
+    if (!promptToDelete.id) {
+      const newPrompts = prompts.filter(p => p !== promptToDelete);
+      onChange(newPrompts.map((p, i) => ({ ...p, sequenceOrder: i })));
+      return;
+    }
+
+    try {
+      await deletePromptTemplate(promptToDelete.id);
+      const newPrompts = prompts.filter(p => p.id !== promptToDelete.id);
+      onChange(newPrompts.map((p, i) => ({ ...p, sequenceOrder: i })));
+    } catch (error) {
+      console.error('Failed to delete prompt template', error);
+      alert('プロンプトの削除に失敗しました。');
+    }
   };
 
   const movePrompt = (fromIndex: number, toIndex: number) => {
@@ -329,7 +342,7 @@ const PromptTemplateEditor: React.FC<PromptTemplateEditorProps> = ({
                         </IconButton>
                         <IconButton
                           size="small"
-                          onClick={() => deletePrompt(realIndex)}
+                          onClick={() => handleDeletePrompt(prompt)}
                           color="error"
                         >
                           <Delete />
