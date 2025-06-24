@@ -146,8 +146,10 @@ const WorkflowBuilderPage: React.FC = () => {
   useEffect(() => {
     // console.log('builderState updated:', builderState);
     // console.log('selectedNode:', builderState.selectedNode);
-    if (builderState.selectedWorkflow && builderState.selectedWorkflow.graphJson.nodes.length > 0) {
-      validateWorkflow();
+    if (builderState.selectedWorkflow && builderState.selectedWorkflow.graphJson) {
+      const { nodes, edges } = builderState.selectedWorkflow.graphJson;
+      const result = validateWorkflow(nodes || [], edges || []);
+      setValidationResult(result);
     }
   }, [builderState]);
 
@@ -162,7 +164,7 @@ const WorkflowBuilderPage: React.FC = () => {
     try {
       setIsLoading(true);
       const response = await workflowApi.getDefinitions();
-      // console.log('API response:', response.data);
+      console.log('API response:', response.data);
       const workflowsData = response.data.map((workflow: any) => ({
         id: workflow.id,
         name: workflow.name,
@@ -171,13 +173,15 @@ const WorkflowBuilderPage: React.FC = () => {
         isActive: workflow.isActive,
         graphJson: workflow.graphJson || { nodes: [], edges: [] },
       }));
-      // console.log('Processed workflows:', workflowsData);
+      console.log('Processed workflows:', workflowsData);
       if (workflowsData.length > 0) {
-        // console.log('First workflow graphJson:', workflowsData[0].graphJson);
+        console.log('First workflow graphJson:', workflowsData[0].graphJson);
       }
       setWorkflows(workflowsData);
-    } catch (error) {
-      // console.error('Failed to load workflows:', error);
+    } catch (error: any) {
+      console.error('Failed to load workflows:', error);
+      console.error('Error details:', error.response?.status, error.response?.data);
+      console.log('Using fallback mock data');
       // Use mock data as fallback
       setWorkflows([
         {
@@ -186,7 +190,66 @@ const WorkflowBuilderPage: React.FC = () => {
           description: 'draft→review→approval→completed',
           version: '1.0',
           isActive: true,
-          graphJson: { nodes: [], edges: [] },
+          graphJson: {
+            nodes: [
+              {
+                id: 'start-1',
+                type: 'start',
+                position: { x: 50, y: 100 },
+                data: { stateKey: 'start', label: '開始', isInitial: true }
+              },
+              {
+                id: 'draft-1',
+                type: 'state',
+                position: { x: 200, y: 100 },
+                data: { stateKey: 'draft', label: '下書き', slaHours: 24 }
+              },
+              {
+                id: 'review-1',
+                type: 'state',
+                position: { x: 350, y: 100 },
+                data: { stateKey: 'review', label: 'レビュー', slaHours: 48 }
+              },
+              {
+                id: 'approval-1',
+                type: 'state',
+                position: { x: 500, y: 100 },
+                data: { stateKey: 'approval', label: '承認', slaHours: 72 }
+              },
+              {
+                id: 'completed-1',
+                type: 'end',
+                position: { x: 650, y: 100 },
+                data: { stateKey: 'completed', label: '完了', isFinal: true }
+              }
+            ],
+            edges: [
+              {
+                id: 'e1',
+                source: 'start-1',
+                target: 'draft-1',
+                data: { actionKey: 'start', actionLabel: '開始', requiresComment: false, autoAdvance: true }
+              },
+              {
+                id: 'e2',
+                source: 'draft-1',
+                target: 'review-1',
+                data: { actionKey: 'submit', actionLabel: 'レビュー依頼', requiresComment: false, autoAdvance: false }
+              },
+              {
+                id: 'e3',
+                source: 'review-1',
+                target: 'approval-1',
+                data: { actionKey: 'approve_review', actionLabel: 'レビュー承認', requiresComment: false, autoAdvance: false }
+              },
+              {
+                id: 'e4',
+                source: 'approval-1',
+                target: 'completed-1',
+                data: { actionKey: 'approve_final', actionLabel: '最終承認', requiresComment: false, autoAdvance: false }
+              }
+            ]
+          },
         },
         {
           id: '2',
@@ -194,7 +257,54 @@ const WorkflowBuilderPage: React.FC = () => {
           description: 'draft→approval→completed',
           version: '1.0',
           isActive: true,
-          graphJson: { nodes: [], edges: [] },
+          graphJson: {
+            nodes: [
+              {
+                id: 'start-2',
+                type: 'start',
+                position: { x: 100, y: 150 },
+                data: { stateKey: 'start', label: '開始', isInitial: true }
+              },
+              {
+                id: 'draft-2',
+                type: 'state',
+                position: { x: 300, y: 150 },
+                data: { stateKey: 'draft', label: '下書き', slaHours: 24 }
+              },
+              {
+                id: 'approval-2',
+                type: 'state',
+                position: { x: 500, y: 150 },
+                data: { stateKey: 'approval', label: '承認', slaHours: 48 }
+              },
+              {
+                id: 'completed-2',
+                type: 'end',
+                position: { x: 700, y: 150 },
+                data: { stateKey: 'completed', label: '完了', isFinal: true }
+              }
+            ],
+            edges: [
+              {
+                id: 'e1',
+                source: 'start-2',
+                target: 'draft-2',
+                data: { actionKey: 'start', actionLabel: '開始', requiresComment: false, autoAdvance: true }
+              },
+              {
+                id: 'e2',
+                source: 'draft-2',
+                target: 'approval-2',
+                data: { actionKey: 'submit', actionLabel: '承認依頼', requiresComment: false, autoAdvance: false }
+              },
+              {
+                id: 'e3',
+                source: 'approval-2',
+                target: 'completed-2',
+                data: { actionKey: 'approve', actionLabel: '承認', requiresComment: false, autoAdvance: false }
+              }
+            ]
+          },
         },
       ]);
     } finally {
@@ -208,7 +318,8 @@ const WorkflowBuilderPage: React.FC = () => {
   }, [loadWorkflows]);
 
   const handleWorkflowSelect = useCallback((workflow: WorkflowDefinition | null) => {
-    // console.log('handleWorkflowSelect called with:', workflow);
+    console.log('handleWorkflowSelect called with:', workflow);
+    console.log('Selected workflow graphJson:', workflow?.graphJson);
     // Ensure proper data structure for selected workflow
     if (workflow) {
       const normalizedWorkflow = {
@@ -544,12 +655,14 @@ const WorkflowBuilderPage: React.FC = () => {
             />
             
             <Tooltip title="自動整列">
-              <IconButton 
-                disabled={!builderState.selectedWorkflow || !builderState.isEditMode}
-                onClick={handleAutoLayout}
-              >
-                <AutoFixHigh />
-              </IconButton>
+              <span>
+                <IconButton 
+                  disabled={!builderState.selectedWorkflow || !builderState.isEditMode}
+                  onClick={handleAutoLayout}
+                >
+                  <AutoFixHigh />
+                </IconButton>
+              </span>
             </Tooltip>
             
             <Button

@@ -205,33 +205,33 @@ export const auditLogsApi = {
 // 承認ワークフロー関連
 export const workflowApi = {
   // ワークフロー定義の管理
-  getDefinitions: () => api.get('/workflows/definitions'),
-  getDefinition: (id: string) => api.get(`/workflows/definitions/${id}`),
-  createDefinition: (data: any) => api.post('/workflows/definitions', data),
-  updateDefinition: (id: string, data: any) => api.put(`/workflows/definitions/${id}`, data),
-  deleteDefinition: (id: string) => api.delete(`/workflows/definitions/${id}`),
+  getDefinitions: () => api.get('/api/v1/workflows/definitions'),
+  getDefinition: (id: string) => api.get(`/api/v1/workflows/definitions/${id}`),
+  createDefinition: (data: any) => api.post('/api/v1/workflows/definitions', data),
+  updateDefinition: (id: string, data: any) => api.put(`/api/v1/workflows/definitions/${id}`, data),
+  deleteDefinition: (id: string) => api.delete(`/api/v1/workflows/definitions/${id}`),
 
   // 承認フローの操作
   startApproval: (data: { documentId: string; workflowId: string; metadata?: any }) =>
-    api.post('/workflows/start', data),
+    api.post('/api/v1/workflows/start', data),
   
   executeTransition: (data: { documentId: string; actionKey: string; comment?: string; metadata?: any; delegatedToId?: string }) =>
-    api.post('/workflows/transition', data),
+    api.post('/api/v1/workflows/transition', data),
 
   // 承認インスタンスと履歴の取得
   getApprovalInstance: (documentId: string) =>
-    api.get(`/workflows/instances/document/${documentId}`),
+    api.get(`/api/v1/workflows/instances/document/${documentId}`),
   
   getApprovalHistory: (documentId: string) =>
-    api.get(`/workflows/history/document/${documentId}`),
+    api.get(`/api/v1/workflows/history/document/${documentId}`),
   
   getPendingApprovals: () =>
-    api.get('/workflows/pending'),
+    api.get('/api/v1/workflows/pending'),
 
   // ワークフローの状態とアクション情報
   getWorkflowStates: (workflowId: string) =>
-    api.get(`/workflows/definitions/${workflowId}/states`),
+    api.get(`/api/v1/workflows/definitions/${workflowId}/states`),
   
   getStateActions: (stateId: string) =>
-    api.get(`/workflows/states/${stateId}/actions`),
+    api.get(`/api/v1/workflows/states/${stateId}/actions`),
 };
