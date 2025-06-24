@@ -235,3 +235,22 @@ export const workflowApi = {
   getStateActions: (stateId: string) =>
     api.get(`/api/v1/workflows/states/${stateId}/actions`),
 };
+
+export const updatePromptTemplate = (
+  promptId: string,
+  prompt: Partial<PromptTemplate>,
+) => {
+  return api.patch(`/api/v1/templates/prompts/${promptId}`, prompt);
+};
+
+export const deletePromptTemplate = (promptId: string) => {
+  return api.delete(`/api/v1/templates/prompts/${promptId}`);
+};
+
+export const createDocument = (data: FormData) => {
+  return api.post('/documents', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
