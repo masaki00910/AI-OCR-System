@@ -180,7 +180,7 @@ const DocumentDetailPage: React.FC = () => {
   };
 
   const handleZoomOut = () => {
-    setScale(Math.max(scale - 0.1, 0.5));
+    setScale(Math.max(scale - 0.1, 0.1));
   };
 
   const handlePreviousPage = () => {
