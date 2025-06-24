@@ -43,6 +43,11 @@ export class DocumentsService {
     userId: string,
     tenantId: string,
   ): Promise<Document> {
+    // ファイル名の文字化け対策
+    const originalname = Buffer.from(file.originalname, 'latin1').toString(
+      'utf-8',
+    );
+
     // テンプレートの確認
     const template = await this.templateRepository.findOne({
       where: { id: createDocumentDto.templateId, tenantId, isActive: true },
@@ -53,7 +58,7 @@ export class DocumentsService {
     }
 
     // ファイルのアップロード
-    const objectName = `tenants/${tenantId}/documents/${Date.now()}_${file.originalname}`;
+    const objectName = `tenants/${tenantId}/documents/${Date.now()}_${originalname}`;
     const stream = new Readable();
     stream.push(file.buffer);
     stream.push(null);
@@ -69,7 +74,7 @@ export class DocumentsService {
     const document = this.documentRepository.create({
       ...createDocumentDto,
       tenantId,
-      fileName: file.originalname,
+      fileName: originalname,
       fileType: file.mimetype,
       fileSize: file.size,
       storagePath,
