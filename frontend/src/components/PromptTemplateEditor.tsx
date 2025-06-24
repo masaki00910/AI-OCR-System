@@ -113,23 +113,21 @@ const PromptTemplateEditor: React.FC<PromptTemplateEditorProps> = ({
   }, [editDialog]);
 
   const handleDeletePrompt = async (promptToDelete: PromptTemplate) => {
-    if (window.confirm('このプロンプトを削除しますか？この操作は取り消せません。')) {
-      // If the prompt doesn't have an ID, it hasn't been saved to the backend yet.
-      // We can just remove it from the local state.
-      if (!promptToDelete.id) {
-        const newPrompts = prompts.filter(p => p !== promptToDelete);
-        onChange(newPrompts.map((p, i) => ({ ...p, sequenceOrder: i })));
-        return;
-      }
+    // If the prompt doesn't have an ID, it hasn't been saved to the backend yet.
+    // We can just remove it from the local state.
+    if (!promptToDelete.id) {
+      const newPrompts = prompts.filter(p => p !== promptToDelete);
+      onChange(newPrompts.map((p, i) => ({ ...p, sequenceOrder: i })));
+      return;
+    }
 
-      try {
-        await deletePromptTemplate(promptToDelete.id);
-        const newPrompts = prompts.filter(p => p.id !== promptToDelete.id);
-        onChange(newPrompts.map((p, i) => ({ ...p, sequenceOrder: i })));
-      } catch (error) {
-        console.error('Failed to delete prompt template', error);
-        alert('プロンプトの削除に失敗しました。');
-      }
+    try {
+      await deletePromptTemplate(promptToDelete.id);
+      const newPrompts = prompts.filter(p => p.id !== promptToDelete.id);
+      onChange(newPrompts.map((p, i) => ({ ...p, sequenceOrder: i })));
+    } catch (error) {
+      console.error('Failed to delete prompt template', error);
+      alert('プロンプトの削除に失敗しました。');
     }
   };
 
