@@ -136,75 +136,22 @@ INSERT INTO templates (id, tenant_id, name, description, version, blocks, create
              "title": "通貨",
              "default": "JPY",
              "description": "支払通貨（JPY、USD等）"
-           },
-           "registration_number": {
-             "type": "string",
-             "title": "登録番号",
-             "pattern": "^T[0-9]{13}$",
-             "description": "適格事業者番号（T + 13桁の数字）"
            }
          },
          "required": ["company_name", "issue_date", "total_amount", "currency"]
        }
      },
      {
-       "block_id": "receipt_details",
-       "label": "取引詳細",
-       "prompt": "領収書から但し書き（購入内容）と受領者情報を抽出してください。税区分（内税/外税）も判別してください。",
+       "block_id": "receipt_biz_num",
+       "label": "適格事業者番号",
+       "prompt": "日本の適格事業者番号Tを先頭に含む13桁（例：T123456789012）",
        "schema": {
          "type": "object",
          "properties": {
-           "description": {
-             "type": "string",
-             "title": "但し書き",
-             "description": "購入した商品・サービスの内容"
-           },
-           "recipient": {
+           "biz_num": {
              "type": "string",
              "title": "宛名",
-             "description": "領収書の宛先（会社名または個人名）"
-           },
-           "tax_type": {
-             "type": "string",
-             "enum": ["内税", "外税", "非課税", "不明"],
-             "title": "税区分",
-             "default": "内税"
-           },
-           "receipt_number": {
-             "type": "string",
-             "title": "領収書番号",
-             "description": "領収書の管理番号"
-           }
-         },
-         "required": ["description"]
-       }
-     },
-     {
-       "block_id": "receipt_breakdown",
-       "label": "内訳（任意）",
-       "prompt": "領収書に内訳が記載されている場合、小計、消費税額、その他の内訳を抽出してください。記載がない場合は「N/A」としてください。",
-       "schema": {
-         "type": "object",
-         "properties": {
-           "subtotal": {
-             "type": "number",
-             "title": "税抜金額",
-             "description": "消費税を除いた金額"
-           },
-           "tax_amount": {
-             "type": "number",
-             "title": "消費税額",
-             "description": "消費税の金額"
-           },
-           "tax_rate": {
-             "type": "number",
-             "title": "税率(%)",
-             "description": "適用された消費税率"
-           },
-           "notes": {
-             "type": "string",
-             "title": "備考",
-             "description": "その他の特記事項"
+             "description": "適格事業者番号"
            }
          }
        }
@@ -212,9 +159,81 @@ INSERT INTO templates (id, tenant_id, name, description, version, blocks, create
    ]',
    '12345678-abcd-1234-abcd-123456789001');
 
+-- 勤怠票テンプレート（デモ株式会社用）
+INSERT INTO templates (id, tenant_id, name, description, version, schema_json, created_by) VALUES
+  ('66666666-6666-6666-6666-666666666666', '11111111-1111-1111-1111-111111111111', 
+   '勤怠票テンプレート', '月次勤怠票のデータ抽出', 1,
+   '{
+     "type": "object",
+     "properties": {
+       "employee_name": {
+         "type": "string",
+         "title": "氏名"
+       },
+       "employee_id": {
+         "type": "string",
+         "title": "社員番号"
+       },
+       "month": {
+         "type": "string",
+         "title": "対象月"
+       },
+       "total_hours": {
+         "type": "number",
+         "title": "総労働時間"
+       },
+       "overtime_hours": {
+         "type": "number",
+         "title": "残業時間"
+       },
+       "holiday_work": {
+         "type": "number",
+         "title": "休日出勤日数"
+       },
+       "paid_leave": {
+         "type": "number",
+         "title": "有給消化日数"
+       }
+     },
+     "required": ["employee_name", "month", "total_hours"]
+   }',
+   '12345678-abcd-1234-abcd-123456789001');
+
+
+-- プロンプトテンプレート（領収書用）
+-- 共通プロンプト（block_id = NULL）
+INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_order, is_active) VALUES
+  ('55555555-5555-5555-5555-555555555555', NULL, 'system', 
+   'あなたは優秀な経理担当者として、領収書の画像から情報を正確に抽出するAIアシスタントです。', 1, true);
+
+-- 領収書基本情報用プロンプト
+INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_order, is_active) VALUES
+  ('55555555-5555-5555-5555-555555555555', 'receipt_main', 'user', 
+   '領収書の情報を抽出してください：
+
+{{schema}}
+
+## 重要事項
+- わからない項目がある場合は、"N/A"と記入してください
+- 金額は数値として抽出（カンマや円マークは除去）
+- 日付はYYYY-MM-DD形式で統一', 2, true);
+
+-- 適格事業者番号用プロンプト
+INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_order, is_active) VALUES
+  ('55555555-5555-5555-5555-555555555555', 'receipt_biz_num', 'user', 
+   '適格事業者番号を抽出してください。
+
+{{schema}}
+
+- 登録番号（適格請求書発行事業者登録番号）は必ず"T"+12桁の数字です。(つまり13桁)
+  - 正しい例: T123456789012
+  - よくある記載: 「登録番号:T123456789012」「インボイス登録番号:T123456789012」「適格請求書発行事業者登録番号:T123456789012」
+  - 領収書の下部や発行者情報の近くに記載されることが多いです', 2, true);
+
+
 -- 勤怠票テンプレート（テスト商事用）
 INSERT INTO templates (id, tenant_id, name, description, version, blocks, created_by) VALUES
-  ('66666666-6666-6666-6666-666666666666', '22222222-2222-2222-2222-222222222222', 
+  ('77777777-7777-7777-7777-777777777777', '22222222-2222-2222-2222-222222222222', 
    '勤怠票テンプレート', '月次勤怠票フォーマット', 1,
    '[
      {
@@ -304,56 +323,6 @@ INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_ord
 
 各行のデータを配列形式のJSONで出力してください。', 2, true);
 
--- プロンプトテンプレート（領収書用 - 経理実務最適化版）
-INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_order, is_active) VALUES
-  ('55555555-5555-5555-5555-555555555555', 'receipt_main', 'system', 
-   'あなたは優秀な経理担当者として、領収書の画像から情報を正確に抽出するAIアシスタントです。インボイス制度に対応し、適格事業者番号（T+13桁）の識別も含めて正確に読み取ってください。', 1, true),
-  ('55555555-5555-5555-5555-555555555555', 'receipt_main', 'user', 
-   '以下の画像は{{blockLabel}}の部分です。次のJSON Schemaに従って情報を抽出してください：
-
-{{schema}}
-
-## 重要事項
-- わからない項目がある場合は、"N/A"と記入してください
-- 金額は数値として抽出（カンマや円マークは除去）
-- 日付はYYYY-MM-DD形式で統一
-- 登録番号（適格請求書発行事業者登録番号）は必ず"T"で始まる13桁の数字です
-  - 正しい例: T1234567890123
-  - よくある記載: 「登録番号:T1234567890123」「インボイス登録番号:T1234567890123」「適格請求書発行事業者登録番号:T1234567890123」
-  - 領収書の下部や発行者情報の近くに記載されることが多いです
-  - 必ずTで始まり、その後に13桁の数字が続きます
-
-JSON形式で出力してください。', 2, true),
-  ('55555555-5555-5555-5555-555555555555', 'receipt_main', 'assistant', 
-   '{
-  "company_name": "株式会社サンプル商事",
-  "issue_date": "2024-06-22",
-  "total_amount": 11000,
-  "currency": "JPY",
-  "registration_number": "T1234567890123"
-}', 3, true),
-  
-  ('55555555-5555-5555-5555-555555555555', 'receipt_details', 'system', 
-   'あなたは領収書の取引詳細を正確に読み取る経理専門AIです。但し書きの内容を具体的に抽出し、税区分も判別してください。', 1, true),
-  ('55555555-5555-5555-5555-555555555555', 'receipt_details', 'user', 
-   '以下の画像は{{blockLabel}}の部分です。但し書き、宛名、税区分、領収書番号を抽出してください：
-
-{{schema}}
-
-税区分は「内税」「外税」「非課税」「不明」のいずれかで判定してください。
-JSON形式で出力してください。', 2, true),
-  
-  ('55555555-5555-5555-5555-555555555555', 'receipt_breakdown', 'system', 
-   'あなたは領収書の内訳情報を分析する経理AIです。税抜金額、消費税額、税率を正確に計算・抽出してください。', 1, true),
-  ('55555555-5555-5555-5555-555555555555', 'receipt_breakdown', 'user', 
-   '以下の画像は{{blockLabel}}の部分です。内訳が記載されている場合、以下の情報を抽出してください：
-
-{{schema}}
-
-内訳の記載がない場合は、各フィールドに"N/A"を設定してください。
-消費税率は8%または10%が一般的です。
-JSON形式で出力してください。', 2, true);
-
 -- 全体用プロンプトテンプレート（block_id = NULL）
 INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_order, is_active) VALUES
   ('66666666-6666-6666-6666-666666666666', NULL, 'system', 
@@ -381,7 +350,7 @@ INSERT INTO exports (id, tenant_id, template_id, format, filter_json, file_path,
    NULL, NULL, 'failed', 'データ取得中にタイムアウトが発生しました', 
    '12345678-abcd-1234-abcd-123456789001', now() - interval '4 hours', NULL),
    
-  ('12345678-abcd-1234-abcd-123456789007', '22222222-2222-2222-2222-222222222222', '66666666-6666-6666-6666-666666666666', 'pdf', 
+  ('12345678-abcd-1234-abcd-123456789007', '22222222-2222-2222-2222-222222222222', '77777777-7777-7777-7777-777777777777', 'pdf', 
    '{"status": ["completed"]}', 
    '/exports/timesheet_report_20240620.pdf', 1024000, 'completed', NULL, 
    '12345678-abcd-1234-abcd-123456789002', now() - interval '1 day', now() - interval '20 hours'),
