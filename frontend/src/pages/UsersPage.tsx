@@ -39,7 +39,6 @@ import {
   Edit,
   Delete,
   Lock,
-  Email,
   CloudUpload,
   CheckCircle,
   Error as ErrorIcon,
@@ -48,11 +47,10 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { usersApi } from '../services/api';
-import { User, UserRole, UsersListResponse, RoleOption, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, ImportUsersRequest, ImportUsersResponse, InviteUserRequest } from '../types/user.types';
+import { User, UserRole, UsersListResponse, RoleOption, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, ImportUsersRequest, ImportUsersResponse } from '../types/user.types';
 import UserDialog from '../components/UserDialog';
 import ChangePasswordDialog from '../components/ChangePasswordDialog';
 import ImportUsersDialog from '../components/ImportUsersDialog';
-import InviteUserDialog from '../components/InviteUserDialog';
 
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -81,7 +79,6 @@ const UsersPage: React.FC = () => {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordChangeUser, setPasswordChangeUser] = useState<User | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Menu state for actions
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -284,24 +281,6 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const handleInviteUser = async (inviteData: InviteUserRequest): Promise<void> => {
-    try {
-      await usersApi.invite(inviteData);
-      setSnackbar({
-        open: true,
-        message: `${inviteData.email}に招待メールを送信しました`,
-        severity: 'success',
-      });
-    } catch (err: any) {
-      console.error('Failed to invite user:', err);
-      setSnackbar({
-        open: true,
-        message: '招待メールの送信に失敗しました',
-        severity: 'error',
-      });
-      throw err;
-    }
-  };
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
@@ -442,14 +421,6 @@ const UsersPage: React.FC = () => {
             disabled={loading}
           >
             更新
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Email />}
-            onClick={() => setInviteDialogOpen(true)}
-            disabled={loading}
-          >
-            招待
           </Button>
           <Button
             variant="outlined"
@@ -636,14 +607,6 @@ const UsersPage: React.FC = () => {
         loading={loading}
       />
 
-      {/* Invite User Dialog */}
-      <InviteUserDialog
-        open={inviteDialogOpen}
-        onClose={() => setInviteDialogOpen(false)}
-        onInvite={handleInviteUser}
-        roles={roles}
-        loading={loading}
-      />
 
       {error && (
         <Alert severity="error" sx={{ mt: 2 }}>
