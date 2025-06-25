@@ -41,6 +41,7 @@ import { api, documentApi } from '../services/api';
 import PdfViewer from '../components/PdfViewer';
 import OcrResultEditor from '../components/OcrResultEditor';
 import ApprovalSection from '../components/ApprovalSection';
+import ApprovalStatusBadge from '../components/ApprovalStatusBadge';
 
 interface Document {
   id: string;
@@ -520,13 +521,15 @@ const DocumentDetailPage: React.FC = () => {
   return (
     <Container maxWidth="xl">
       <Box my={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/documents')}
-          sx={{ mb: 2 }}
-        >
-          ドキュメント一覧に戻る
-        </Button>
+        <Box display="flex" alignItems="center" gap={2} sx={{ mb: 2 }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/documents')}
+          >
+            ドキュメント一覧に戻る
+          </Button>
+          <ApprovalStatusBadge documentId={documentData.id} />
+        </Box>
 
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
@@ -534,54 +537,6 @@ const DocumentDetailPage: React.FC = () => {
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h5">{documentData.fileName}</Typography>
                 <Box display="flex" alignItems="center" gap={2}>
-                  {/* ページナビゲーション */}
-                  <Box display="flex" alignItems="center">
-                    <Tooltip title="前のページ">
-                      <span>
-                        <IconButton 
-                          onClick={handlePreviousPage} 
-                          disabled={currentPage <= 1}
-                        >
-                          <NavigateBeforeIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    <Typography component="span" sx={{ mx: 1 }}>
-                      {currentPage} / {documentData.pageCount}
-                    </Typography>
-                    <Tooltip title="次のページ">
-                      <span>
-                        <IconButton 
-                          onClick={handleNextPage} 
-                          disabled={currentPage >= documentData.pageCount}
-                        >
-                          <NavigateNextIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </Box>
-                  
-                  <Divider orientation="vertical" flexItem />
-                  
-                  {/* ズームコントロール */}
-                  <Box display="flex" alignItems="center">
-                    <Tooltip title="ズームアウト">
-                      <IconButton onClick={handleZoomOut}>
-                        <ZoomOutIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Typography component="span" sx={{ mx: 1 }}>
-                      {Math.round(scale * 100)}%
-                    </Typography>
-                    <Tooltip title="ズームイン">
-                      <IconButton onClick={handleZoomIn}>
-                        <ZoomInIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                  
-                  <Divider orientation="vertical" flexItem />
-                  
                   {/* モード切り替えコントロール */}
                   <Box display="flex" alignItems="center">
                     <ToggleButtonGroup
@@ -624,25 +579,77 @@ const DocumentDetailPage: React.FC = () => {
               
               {/* 選択範囲のプレビュー（削除済み） */}
 
-              {/* PDFビューア */}
-              <Box
-                sx={{
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '70vh',
-                  backgroundColor: '#f5f5f5',
-                  border: '1px solid #ddd',
-                }}
-              >
-                <PdfViewer
-                  documentId={documentData.id}
-                  pageCount={documentData.pageCount}
-                  currentPage={currentPage}
-                  scale={scale}
-                  mode={mode}
-                  onPageChange={handlePageChange}
-                  onSelectionComplete={handleSelectionComplete}
-                />
+              {/* PDFビューアー全体コンテナ */}
+              <Box sx={{ height: 'calc(70vh + 120px)', display: 'flex', flexDirection: 'column' }}>
+                {/* PDFビューア */}
+                <Box
+                  sx={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    flex: '1',
+                    backgroundColor: '#f5f5f5',
+                    border: '1px solid #ddd',
+                  }}
+                >
+                  <PdfViewer
+                    documentId={documentData.id}
+                    pageCount={documentData.pageCount}
+                    currentPage={currentPage}
+                    scale={scale}
+                    mode={mode}
+                    onPageChange={handlePageChange}
+                    onSelectionComplete={handleSelectionComplete}
+                  />
+                </Box>
+
+                {/* ページナビゲーションと拡大縮小コントロール */}
+                <Box display="flex" justifyContent="center" alignItems="center" gap={3} sx={{ py: 2, borderTop: '1px solid #e0e0e0', height: '120px', flexShrink: 0 }}>
+                {/* ページナビゲーション */}
+                <Box display="flex" alignItems="center">
+                  <Tooltip title="前のページ">
+                    <span>
+                      <IconButton 
+                        onClick={handlePreviousPage} 
+                        disabled={currentPage <= 1}
+                      >
+                        <NavigateBeforeIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Typography component="span" sx={{ mx: 2, minWidth: '80px', textAlign: 'center' }}>
+                    {currentPage} / {documentData.pageCount}
+                  </Typography>
+                  <Tooltip title="次のページ">
+                    <span>
+                      <IconButton 
+                        onClick={handleNextPage} 
+                        disabled={currentPage >= documentData.pageCount}
+                      >
+                        <NavigateNextIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+                
+                <Divider orientation="vertical" flexItem />
+                
+                {/* ズームコントロール */}
+                <Box display="flex" alignItems="center">
+                  <Tooltip title="ズームアウト">
+                    <IconButton onClick={handleZoomOut}>
+                      <ZoomOutIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Typography component="span" sx={{ mx: 2, minWidth: '60px', textAlign: 'center' }}>
+                    {Math.round(scale * 100)}%
+                  </Typography>
+                  <Tooltip title="ズームイン">
+                    <IconButton onClick={handleZoomIn}>
+                      <ZoomInIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+                </Box>
               </Box>
 
             </Paper>
@@ -652,7 +659,7 @@ const DocumentDetailPage: React.FC = () => {
             {/* スクロール可能な統合パネル */}
             <Box
               sx={{
-                height: '80vh',
+                height: 'calc(70vh + 120px)', // PDFビューアー全体コンテナと同じ高さ
                 overflowY: 'auto',
                 '&::-webkit-scrollbar': {
                   width: '8px',
@@ -708,11 +715,6 @@ const DocumentDetailPage: React.FC = () => {
                   ))}
                 </CardContent>
               </Card>
-
-              {/* 承認セクション */}
-              <Box sx={{ mb: 2 }}>
-                <ApprovalSection documentId={documentData.id} />
-              </Box>
 
               {/* 選択済みブロック一覧 */}
               <Card>
@@ -898,9 +900,15 @@ const DocumentDetailPage: React.FC = () => {
                   )}
                 </CardContent>
               </Card>
+
             </Box>
           </Grid>
         </Grid>
+
+        {/* 承認状況セクション（ページ下部、全幅） */}
+        <Box sx={{ mt: 4 }}>
+          <ApprovalSection documentId={documentData.id} />
+        </Box>
       </Box>
 
       {/* デバッグプレビューダイアログ */}
