@@ -534,54 +534,6 @@ const DocumentDetailPage: React.FC = () => {
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h5">{documentData.fileName}</Typography>
                 <Box display="flex" alignItems="center" gap={2}>
-                  {/* ページナビゲーション */}
-                  <Box display="flex" alignItems="center">
-                    <Tooltip title="前のページ">
-                      <span>
-                        <IconButton 
-                          onClick={handlePreviousPage} 
-                          disabled={currentPage <= 1}
-                        >
-                          <NavigateBeforeIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    <Typography component="span" sx={{ mx: 1 }}>
-                      {currentPage} / {documentData.pageCount}
-                    </Typography>
-                    <Tooltip title="次のページ">
-                      <span>
-                        <IconButton 
-                          onClick={handleNextPage} 
-                          disabled={currentPage >= documentData.pageCount}
-                        >
-                          <NavigateNextIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </Box>
-                  
-                  <Divider orientation="vertical" flexItem />
-                  
-                  {/* ズームコントロール */}
-                  <Box display="flex" alignItems="center">
-                    <Tooltip title="ズームアウト">
-                      <IconButton onClick={handleZoomOut}>
-                        <ZoomOutIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Typography component="span" sx={{ mx: 1 }}>
-                      {Math.round(scale * 100)}%
-                    </Typography>
-                    <Tooltip title="ズームイン">
-                      <IconButton onClick={handleZoomIn}>
-                        <ZoomInIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                  
-                  <Divider orientation="vertical" flexItem />
-                  
                   {/* モード切り替えコントロール */}
                   <Box display="flex" alignItems="center">
                     <ToggleButtonGroup
@@ -645,6 +597,55 @@ const DocumentDetailPage: React.FC = () => {
                 />
               </Box>
 
+              {/* ページナビゲーションと拡大縮小コントロール */}
+              <Box display="flex" justifyContent="center" alignItems="center" gap={3} sx={{ mt: 2, py: 2, borderTop: '1px solid #e0e0e0' }}>
+                {/* ページナビゲーション */}
+                <Box display="flex" alignItems="center">
+                  <Tooltip title="前のページ">
+                    <span>
+                      <IconButton 
+                        onClick={handlePreviousPage} 
+                        disabled={currentPage <= 1}
+                      >
+                        <NavigateBeforeIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Typography component="span" sx={{ mx: 2, minWidth: '80px', textAlign: 'center' }}>
+                    {currentPage} / {documentData.pageCount}
+                  </Typography>
+                  <Tooltip title="次のページ">
+                    <span>
+                      <IconButton 
+                        onClick={handleNextPage} 
+                        disabled={currentPage >= documentData.pageCount}
+                      >
+                        <NavigateNextIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+                
+                <Divider orientation="vertical" flexItem />
+                
+                {/* ズームコントロール */}
+                <Box display="flex" alignItems="center">
+                  <Tooltip title="ズームアウト">
+                    <IconButton onClick={handleZoomOut}>
+                      <ZoomOutIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Typography component="span" sx={{ mx: 2, minWidth: '60px', textAlign: 'center' }}>
+                    {Math.round(scale * 100)}%
+                  </Typography>
+                  <Tooltip title="ズームイン">
+                    <IconButton onClick={handleZoomIn}>
+                      <ZoomInIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+
             </Paper>
           </Grid>
 
@@ -652,7 +653,7 @@ const DocumentDetailPage: React.FC = () => {
             {/* スクロール可能な統合パネル */}
             <Box
               sx={{
-                height: '80vh',
+                height: 'calc(70vh + 100px)', // PDFビューアー(70vh) + 下部コントロールバー(100px)に合わせる
                 overflowY: 'auto',
                 '&::-webkit-scrollbar': {
                   width: '8px',
@@ -708,11 +709,6 @@ const DocumentDetailPage: React.FC = () => {
                   ))}
                 </CardContent>
               </Card>
-
-              {/* 承認セクション */}
-              <Box sx={{ mb: 2 }}>
-                <ApprovalSection documentId={documentData.id} />
-              </Box>
 
               {/* 選択済みブロック一覧 */}
               <Card>
@@ -898,9 +894,15 @@ const DocumentDetailPage: React.FC = () => {
                   )}
                 </CardContent>
               </Card>
+
             </Box>
           </Grid>
         </Grid>
+
+        {/* 承認状況セクション（ページ下部、全幅） */}
+        <Box sx={{ mt: 4 }}>
+          <ApprovalSection documentId={documentData.id} />
+        </Box>
       </Box>
 
       {/* デバッグプレビューダイアログ */}
