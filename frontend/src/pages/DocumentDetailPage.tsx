@@ -41,6 +41,7 @@ import { api, documentApi } from '../services/api';
 import PdfViewer from '../components/PdfViewer';
 import OcrResultEditor from '../components/OcrResultEditor';
 import ApprovalSection from '../components/ApprovalSection';
+import ApprovalStatusBadge from '../components/ApprovalStatusBadge';
 
 interface Document {
   id: string;
@@ -520,13 +521,15 @@ const DocumentDetailPage: React.FC = () => {
   return (
     <Container maxWidth="xl">
       <Box my={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/documents')}
-          sx={{ mb: 2 }}
-        >
-          ドキュメント一覧に戻る
-        </Button>
+        <Box display="flex" alignItems="center" gap={2} sx={{ mb: 2 }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/documents')}
+          >
+            ドキュメント一覧に戻る
+          </Button>
+          <ApprovalStatusBadge documentId={documentData.id} />
+        </Box>
 
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
@@ -576,29 +579,31 @@ const DocumentDetailPage: React.FC = () => {
               
               {/* 選択範囲のプレビュー（削除済み） */}
 
-              {/* PDFビューア */}
-              <Box
-                sx={{
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '70vh',
-                  backgroundColor: '#f5f5f5',
-                  border: '1px solid #ddd',
-                }}
-              >
-                <PdfViewer
-                  documentId={documentData.id}
-                  pageCount={documentData.pageCount}
-                  currentPage={currentPage}
-                  scale={scale}
-                  mode={mode}
-                  onPageChange={handlePageChange}
-                  onSelectionComplete={handleSelectionComplete}
-                />
-              </Box>
+              {/* PDFビューアー全体コンテナ */}
+              <Box sx={{ height: 'calc(70vh + 120px)', display: 'flex', flexDirection: 'column' }}>
+                {/* PDFビューア */}
+                <Box
+                  sx={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    flex: '1',
+                    backgroundColor: '#f5f5f5',
+                    border: '1px solid #ddd',
+                  }}
+                >
+                  <PdfViewer
+                    documentId={documentData.id}
+                    pageCount={documentData.pageCount}
+                    currentPage={currentPage}
+                    scale={scale}
+                    mode={mode}
+                    onPageChange={handlePageChange}
+                    onSelectionComplete={handleSelectionComplete}
+                  />
+                </Box>
 
-              {/* ページナビゲーションと拡大縮小コントロール */}
-              <Box display="flex" justifyContent="center" alignItems="center" gap={3} sx={{ mt: 2, py: 2, borderTop: '1px solid #e0e0e0' }}>
+                {/* ページナビゲーションと拡大縮小コントロール */}
+                <Box display="flex" justifyContent="center" alignItems="center" gap={3} sx={{ py: 2, borderTop: '1px solid #e0e0e0', height: '120px', flexShrink: 0 }}>
                 {/* ページナビゲーション */}
                 <Box display="flex" alignItems="center">
                   <Tooltip title="前のページ">
@@ -644,6 +649,7 @@ const DocumentDetailPage: React.FC = () => {
                     </IconButton>
                   </Tooltip>
                 </Box>
+                </Box>
               </Box>
 
             </Paper>
@@ -653,7 +659,7 @@ const DocumentDetailPage: React.FC = () => {
             {/* スクロール可能な統合パネル */}
             <Box
               sx={{
-                height: 'calc(70vh + 100px)', // PDFビューアー(70vh) + 下部コントロールバー(100px)に合わせる
+                height: 'calc(70vh + 120px)', // PDFビューアー全体コンテナと同じ高さ
                 overflowY: 'auto',
                 '&::-webkit-scrollbar': {
                   width: '8px',
