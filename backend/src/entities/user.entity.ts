@@ -18,9 +18,11 @@ import { Export } from './export.entity';
 import { AuditLog } from './audit-log.entity';
 
 export enum UserRole {
-  VIEWER = 'viewer',
-  EDITOR = 'editor',
   ADMIN = 'admin',
+  MANAGER = 'manager',       // 部長
+  SUPERVISOR = 'supervisor', // 係長
+  EDITOR = 'editor',
+  VIEWER = 'viewer',
 }
 
 @Entity('users')

@@ -93,6 +93,10 @@ export class WorkflowsController {
     @Body() startDto: StartApprovalDto,
     @CurrentUser() user: any,
   ): Promise<ApprovalInstance> {
+    console.log('Received start approval request:', {
+      body: startDto,
+      user: { tenantId: user.tenantId, userId: user.userId },
+    });
     return this.workflowsService.startApproval(user.tenantId, user.userId, startDto);
   }
 

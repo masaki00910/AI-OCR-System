@@ -7,6 +7,15 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
+  // ロール階層定義（上位ロールは下位ロールの権限を持つ）
+  private readonly roleHierarchy = {
+    [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.MANAGER, UserRole.SUPERVISOR, UserRole.EDITOR, UserRole.VIEWER],
+    [UserRole.MANAGER]: [UserRole.MANAGER, UserRole.SUPERVISOR, UserRole.EDITOR, UserRole.VIEWER],
+    [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR, UserRole.EDITOR, UserRole.VIEWER],
+    [UserRole.EDITOR]: [UserRole.EDITOR, UserRole.VIEWER],
+    [UserRole.VIEWER]: [UserRole.VIEWER],
+  };
+
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
       context.getHandler(),
@@ -23,6 +32,10 @@ export class RolesGuard implements CanActivate {
       return false;
     }
 
-    return requiredRoles.some((role) => user.role === role);
+    // ユーザーのロールが持つ権限（階層を考慮）
+    const userPermissions = this.roleHierarchy[user.role] || [user.role];
+
+    // 必要なロールのいずれかをユーザーが持っているかチェック
+    return requiredRoles.some((role) => userPermissions.includes(role));
   }
 }

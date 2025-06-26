@@ -1,5 +1,7 @@
 export enum UserRole {
   ADMIN = 'admin',
+  MANAGER = 'manager',       // 部長
+  SUPERVISOR = 'supervisor', // 係長
   EDITOR = 'editor',
   VIEWER = 'viewer',
 }

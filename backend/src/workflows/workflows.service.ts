@@ -244,6 +244,8 @@ export class WorkflowsService {
     startDto: StartApprovalDto,
   ): Promise<ApprovalInstance> {
     const { documentId, workflowId, metadata } = startDto;
+    
+    console.log('Starting approval process:', { documentId, workflowId, tenantId, userId });
 
     // ドキュメントの存在確認
     const document = await this.documentRepository.findOne({
@@ -256,7 +258,10 @@ export class WorkflowsService {
 
     // ワークフローの存在確認
     const workflow = await this.findWorkflowDefinition(tenantId, workflowId);
+    console.log('Found workflow:', { workflowId: workflow.id, states: workflow.states?.length });
+    
     const initialState = workflow.getInitialState();
+    console.log('Initial state:', initialState);
 
     if (!initialState) {
       throw new BadRequestException('Workflow has no initial state');
@@ -278,15 +283,42 @@ export class WorkflowsService {
       workflowId,
       currentStateId: initialState.id,
       startedById: userId,
+      status: 'active',
       metadata: metadata || {},
+      startedAt: new Date(),
     });
 
     const savedInstance = await this.approvalInstanceRepository.save(instance);
 
-    // 自動遷移の処理
-    await this.processAutoTransitions(savedInstance);
+    // リレーションを含めて再取得
+    const fullInstance = await this.approvalInstanceRepository.findOne({
+      where: { id: savedInstance.id },
+      relations: ['workflow', 'currentState', 'steps'],
+    });
 
-    return savedInstance;
+    if (!fullInstance) {
+      throw new Error('Failed to retrieve saved approval instance');
+    }
+
+    // 自動遷移の処理
+    await this.processAutoTransitions(fullInstance);
+
+    // 現在の状態が最終状態でなければ、最初の承認ステップを作成
+    const currentState = await this.workflowStateRepository.findOne({
+      where: { id: fullInstance.currentStateId },
+    });
+    
+    if (currentState && !currentState.isFinal) {
+      await this.createNextApprovalStep(fullInstance, currentState);
+    }
+
+    // 最新の状態を含めて再取得して返す
+    const finalInstance = await this.approvalInstanceRepository.findOne({
+      where: { id: savedInstance.id },
+      relations: ['workflow', 'currentState', 'steps', 'steps.state'],
+    });
+
+    return finalInstance || savedInstance;
   }
 
   // 状態遷移の実行
@@ -399,6 +431,8 @@ export class WorkflowsService {
 
   // 自動遷移の処理
   private async processAutoTransitions(instance: ApprovalInstance): Promise<void> {
+    console.log('Processing auto transitions for state:', instance.currentStateId);
+    
     const autoTransitions = await this.workflowTransitionRepository.find({
       where: { 
         workflowId: instance.workflowId,
@@ -408,12 +442,15 @@ export class WorkflowsService {
       relations: ['toState'],
     });
 
+    console.log('Found auto transitions:', autoTransitions.length);
+
     for (const transition of autoTransitions) {
       if (transition.evaluateCondition(instance.metadata)) {
+        console.log('Auto-advancing to state:', transition.toStateId);
         instance.currentStateId = transition.toStateId;
         await this.approvalInstanceRepository.save(instance);
 
-        if (!transition.toState.isFinal) {
+        if (transition.toState && !transition.toState.isFinal) {
           await this.createNextApprovalStep(instance, transition.toState);
         }
         break;
@@ -426,16 +463,48 @@ export class WorkflowsService {
     instance: ApprovalInstance,
     state: WorkflowState,
   ): Promise<ApprovalStep> {
-    // TODO: 承認者の割り当てロジックを実装
-    // 現在は仮で、テナントの管理者を割り当て
+    // 承認者の割り当てロジック（簡易実装）
+    let assignedToId = instance.startedById; // デフォルトは申請者
+    
+    // 状態に応じて適切な承認者を選択
+    try {
+      if (state.stateKey === 'review' || state.stateKey === 'approval') {
+        // レビュー・承認段階では係長・部長・管理者から選択
+        const approver = await this.findApprover(instance.tenantId, state.stateKey);
+        if (approver) {
+          assignedToId = approver.id;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to find approver, using default:', error);
+    }
     
     const step = this.approvalStepRepository.create({
       instanceId: instance.id,
       stateId: state.id,
-      assignedToId: instance.startedById, // 仮の実装
+      assignedToId,
       dueAt: state.hasSLA() ? new Date(Date.now() + state.slaHours * 60 * 60 * 1000) : null,
     });
 
     return await this.approvalStepRepository.save(step);
+  }
+
+  // 承認者を検索する簡易メソッド
+  private async findApprover(tenantId: string, stateKey: string) {
+    const userRepository = this.documentRepository.manager.getRepository('User');
+    
+    // 状態に応じて適切なロールの承認者を選択
+    let targetRole = 'admin';
+    if (stateKey === 'review') {
+      targetRole = 'supervisor'; // 係長
+    } else if (stateKey === 'approval') {
+      targetRole = 'manager'; // 部長
+    }
+    
+    const approver = await userRepository.findOne({
+      where: { tenantId, role: targetRole, isActive: true },
+    });
+    
+    return approver;
   }
 }

@@ -16,7 +16,13 @@ INSERT INTO users (id, tenant_id, email, username, role, password_hash) VALUES
    '$2b$10$ez5LMl5IgfsGMuZyoZL5Se2VEi3.F1MtHWbVKlrzRTOk3xAgUw1lq'),
   ('12345678-abcd-1234-abcd-123456789003', '22222222-2222-2222-2222-222222222222', 
    'test@test.com', 'test', 'admin', 
-   '$2b$10$YKxX3.sSs1ibcJvg6l1s2.W0h7uPUkODkYS3J6rKXI2NZeKxPKb3y');
+   '$2b$10$YKxX3.sSs1ibcJvg6l1s2.W0h7uPUkODkYS3J6rKXI2NZeKxPKb3y'),
+  ('12345678-abcd-1234-abcd-123456789004', '11111111-1111-1111-1111-111111111111', 
+   'supervisor@demo.com', 'supervisor', 'supervisor', 
+   '$2b$10$ez5LMl5IgfsGMuZyoZL5Se2VEi3.F1MtHWbVKlrzRTOk3xAgUw1lq'),
+  ('12345678-abcd-1234-abcd-123456789005', '11111111-1111-1111-1111-111111111111', 
+   'manager@demo.com', 'manager', 'manager', 
+   '$2b$10$ez5LMl5IgfsGMuZyoZL5Se2VEi3.F1MtHWbVKlrzRTOk3xAgUw1lq');
 
 -- 請求書テンプレート（Ver 1.1: blocks定義付き）
 INSERT INTO templates (id, tenant_id, name, description, version, blocks, created_by) VALUES

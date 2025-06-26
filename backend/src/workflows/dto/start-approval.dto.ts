@@ -1,13 +1,15 @@
-import { IsUUID, IsOptional, IsObject } from 'class-validator';
+import { IsUUID, IsOptional, IsObject, IsString, IsNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class StartApprovalDto {
   @ApiProperty({ description: 'ドキュメントID' })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   documentId: string;
 
   @ApiProperty({ description: 'ワークフローID' })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   workflowId: string;
 
   @ApiPropertyOptional({ description: 'メタデータ（優先度、金額など）' })
