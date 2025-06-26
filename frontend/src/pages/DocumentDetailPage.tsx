@@ -532,8 +532,8 @@ const DocumentDetailPage: React.FC = () => {
         </Box>
 
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 2 }}>
+          <Grid item xs={12} md={8} sx={{ display: 'flex', flexDirection: 'column', height: 'calc(70vh + 120px)' }}>
+            <Paper sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h5">{documentData.fileName}</Typography>
                 <Box display="flex" alignItems="center" gap={2}>
@@ -580,7 +580,7 @@ const DocumentDetailPage: React.FC = () => {
               {/* 選択範囲のプレビュー（削除済み） */}
 
               {/* PDFビューアー全体コンテナ */}
-              <Box sx={{ height: 'calc(70vh + 120px)', display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 {/* PDFビューア */}
                 <Box
                   sx={{
