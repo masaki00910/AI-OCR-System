@@ -367,7 +367,7 @@ const AuditLogsPage: React.FC = () => {
                   <Box>
                     <Typography variant="h6">{summary.totalUsers}</Typography>
                     <Typography variant="body2" color="textSecondary">
-                      アクティブユーザー
+                      ユーザー数
                     </Typography>
                   </Box>
                 </Box>
