@@ -124,6 +124,7 @@ export class TemplatesService {
   ): Promise<{ templates: Template[]; total: number }> {
     const query = this.templateRepository.createQueryBuilder('template')
       .where('template.tenantId = :tenantId', { tenantId })
+      .andWhere('template.isDeleted = :isDeleted', { isDeleted: false })
       .leftJoinAndSelect('template.promptTemplates', 'prompts', 'prompts.deleted_at IS NULL')
       .orderBy('template.createdAt', 'DESC');
 
@@ -149,6 +150,7 @@ export class TemplatesService {
       .createQueryBuilder('template')
       .where('template.id = :id', { id })
       .andWhere('template.tenantId = :tenantId', { tenantId })
+      .andWhere('template.isDeleted = :isDeleted', { isDeleted: false })
       .leftJoinAndSelect(
         'template.promptTemplates',
         'prompts',
@@ -268,8 +270,14 @@ export class TemplatesService {
   async delete(id: string, userId: string, tenantId: string): Promise<void> {
     const template = await this.findOne(id, tenantId);
 
-    // Soft delete by marking as inactive
+    const oldValues = { ...template };
+
+    // Soft delete by setting deletion flags
+    template.isDeleted = true;
+    template.deletedAt = new Date();
+    template.deletedById = userId;
     template.isActive = false;
+    
     await this.templateRepository.save(template);
 
     // Create audit log
@@ -279,8 +287,8 @@ export class TemplatesService {
       'templates',
       id,
       AuditOperation.DELETE,
-      template,
-      { isActive: false },
+      oldValues,
+      { isDeleted: true, deletedAt: template.deletedAt, deletedById: userId, isActive: false },
     );
   }
 
