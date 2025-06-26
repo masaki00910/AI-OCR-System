@@ -36,7 +36,7 @@ import {
   FileCopy,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { templateApi } from '../services/api';
+import { templateApi, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '../services/api';
 import PromptTemplateEditor from '../components/PromptTemplateEditor';
 import BlockDefinitionEditor from '../components/BlockDefinitionEditor';
 
@@ -168,6 +168,49 @@ const TemplatesPage: React.FC = () => {
         description: formData.description,
         blocks: formData.blocks
       });
+
+      // プロンプトの保存処理
+      const originalPrompts = editDialog.promptTemplates || [];
+      const currentPrompts = prompts;
+
+      // 既存プロンプトのIDリスト
+      const originalIds = originalPrompts.map(p => p.id);
+      const currentIds = currentPrompts.filter(p => p.id).map(p => p.id);
+
+      // 削除されたプロンプトを処理
+      const deletedIds = originalIds.filter(id => !currentIds.includes(id));
+      for (const id of deletedIds) {
+        await deletePromptTemplate(id);
+      }
+
+      // 新規プロンプトと更新プロンプトを分離
+      const newPrompts = currentPrompts.filter(p => !p.id);
+      const existingPrompts = currentPrompts.filter(p => p.id);
+
+      // 既存プロンプトを更新
+      for (const prompt of existingPrompts) {
+        const originalPrompt = originalPrompts.find(p => p.id === prompt.id);
+        if (originalPrompt && JSON.stringify(originalPrompt) !== JSON.stringify(prompt)) {
+          await updatePromptTemplate(prompt.id, {
+            role: prompt.role,
+            content: prompt.content,
+            blockId: prompt.blockId,
+            sequenceOrder: prompt.sequenceOrder,
+            isActive: prompt.isActive
+          });
+        }
+      }
+
+      // 新規プロンプトを作成
+      if (newPrompts.length > 0) {
+        await createPromptTemplate(editDialog.id, newPrompts.map(p => ({
+          role: p.role,
+          content: p.content,
+          blockId: p.blockId,
+          sequenceOrder: p.sequenceOrder,
+          isActive: p.isActive
+        })));
+      }
 
       setEditDialog(null);
       await loadTemplates();

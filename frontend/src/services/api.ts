@@ -236,6 +236,13 @@ export const workflowApi = {
     api.get(`/api/v1/workflows/states/${stateId}/actions`),
 };
 
+export const createPromptTemplate = (
+  templateId: string,
+  prompts: Partial<PromptTemplate>[],
+) => {
+  return api.post(`/api/v1/templates/${templateId}/prompts`, prompts);
+};
+
 export const updatePromptTemplate = (
   promptId: string,
   prompt: Partial<PromptTemplate>,
