@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -36,6 +37,7 @@ interface WorkflowDefinition {
 }
 
 const WorkflowsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -184,17 +186,18 @@ const WorkflowsPage: React.FC = () => {
                   <IconButton
                     size="small"
                     onClick={() => {
-                      setSelectedWorkflow(workflow);
-                      // TODO: 詳細表示ダイアログを開く
+                      navigate(`/workflow-builder?id=${workflow.id}`);
                     }}
+                    title="ワークフロービルダーで表示"
                   >
                     <VisibilityIcon />
                   </IconButton>
                   <IconButton
                     size="small"
                     onClick={() => {
-                      // TODO: 編集ダイアログを開く
+                      navigate(`/workflow-builder?id=${workflow.id}&mode=edit`);
                     }}
+                    title="ワークフロービルダーで編集"
                   >
                     <EditIcon />
                   </IconButton>
