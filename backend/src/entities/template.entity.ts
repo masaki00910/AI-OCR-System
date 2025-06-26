@@ -45,6 +45,15 @@ export class Template {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted: boolean;
+
+  @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
+  deletedAt: Date | null;
+
+  @Column({ name: 'deleted_by', type: 'uuid', nullable: true })
+  deletedById: string | null;
+
   @Column({ name: 'created_by', type: 'uuid', nullable: true })
   createdById: string | null;
 
@@ -62,6 +71,10 @@ export class Template {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
   createdBy: User | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'deleted_by' })
+  deletedBy: User | null;
 
   @OneToMany(() => PromptTemplate, (promptTemplate) => promptTemplate.template)
   promptTemplates: PromptTemplate[];

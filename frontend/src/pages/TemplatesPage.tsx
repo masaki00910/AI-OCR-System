@@ -105,6 +105,8 @@ const TemplatesPage: React.FC = () => {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [useBlocks, setUseBlocks] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<Template | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -198,6 +200,22 @@ const TemplatesPage: React.FC = () => {
     });
     setPrompts(template.promptTemplates || []);
     setTabValue(0);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteDialog) return;
+
+    try {
+      setDeleting(true);
+      await templateApi.delete(deleteDialog.id);
+      setDeleteDialog(null);
+      await loadTemplates();
+    } catch (err: any) {
+      console.error('Failed to delete template:', err);
+      setError('テンプレートの削除に失敗しました');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const generateExampleFromSchema = (schema: any): any => {
@@ -362,6 +380,14 @@ const TemplatesPage: React.FC = () => {
                     >
                       新バージョン
                     </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<Delete />}
+                      onClick={() => setDeleteDialog(template)}
+                    >
+                      削除
+                    </Button>
                   </CardActions>
                 )}
               </Card>
@@ -520,6 +546,30 @@ const TemplatesPage: React.FC = () => {
             disabled={!formData.name || submitting}
           >
             {submitting ? <CircularProgress size={24} /> : '更新'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Template Dialog */}
+      <Dialog open={!!deleteDialog} onClose={() => setDeleteDialog(null)}>
+        <DialogTitle>テンプレートの削除</DialogTitle>
+        <DialogContent>
+          <Typography>
+            テンプレート「{deleteDialog?.name}」を削除しますか？
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            この操作は取り消せません。関連するドキュメントやプロンプトも使用できなくなります。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(null)}>キャンセル</Button>
+          <Button
+            onClick={handleDelete}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+          >
+            {deleting ? <CircularProgress size={24} /> : '削除'}
           </Button>
         </DialogActions>
       </Dialog>

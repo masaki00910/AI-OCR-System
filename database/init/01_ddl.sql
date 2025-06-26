@@ -47,6 +47,9 @@ CREATE TABLE templates (
   schema_json JSONB,  -- 旧形式互換性のため残す
   blocks JSONB,       -- Ver 1.1: 範囲ブロック定義
   is_active BOOLEAN DEFAULT true,
+  is_deleted BOOLEAN DEFAULT false,  -- Ver 1.3: 論理削除フラグ
+  deleted_at TIMESTAMPTZ,  -- Ver 1.3: 削除日時
+  deleted_by UUID REFERENCES users(id),  -- Ver 1.3: 削除者
   created_by UUID REFERENCES users(id),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
