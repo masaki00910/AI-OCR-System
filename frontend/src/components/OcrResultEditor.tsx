@@ -24,9 +24,6 @@ import {
   Save as SaveIcon,
   Undo as UndoIcon,
   Check as CheckIcon,
-  Edit as EditIcon,
-  Visibility as ViewIcon,
-  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 
 interface BlockDefinition {
@@ -69,7 +66,6 @@ const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
   const [originalData, setOriginalData] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [showRawData, setShowRawData] = useState(false);
   const [isModified, setIsModified] = useState(false);
 
   // 初期データの設定
@@ -352,16 +348,6 @@ const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
           <Typography variant="h6">
             {blockDefinition.label} - 点検補正
           </Typography>
-          <Box>
-            <Tooltip title={showRawData ? 'フォーム表示' : 'Raw データ表示'}>
-              <IconButton
-                onClick={() => setShowRawData(!showRawData)}
-                size="small"
-              >
-                {showRawData ? <EditIcon /> : <ViewIcon />}
-              </IconButton>
-            </Tooltip>
-          </Box>
         </Box>
 
         {/* ステータス表示 */}
@@ -386,53 +372,32 @@ const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
 
         <Divider sx={{ mb: 2 }} />
 
-        {showRawData ? (
-          // Raw データ表示
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              OCR結果（JSON）
-            </Typography>
-            <pre style={{
-              fontSize: '12px',
-              backgroundColor: '#f5f5f5',
-              padding: '12px',
-              borderRadius: '4px',
-              overflow: 'auto',
-              maxHeight: '300px',
-              whiteSpace: 'pre-wrap',
-              margin: 0,
-            }}>
-              {JSON.stringify(editedData, null, 2)}
-            </pre>
-          </Box>
-        ) : (
-          // フォーム表示
-          <Box>
-            {blockDefinition.schema?.properties ? (
-              Object.entries(blockDefinition.schema.properties).map(([key, schema]: [string, any]) =>
-                renderField(key, schema, editedData[key])
-              )
-            ) : (
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  スキーマ定義がありません。Raw データを確認してください。
-                </Typography>
-                <pre style={{
-                  fontSize: '12px',
-                  backgroundColor: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  overflow: 'auto',
-                  maxHeight: '200px',
-                  whiteSpace: 'pre-wrap',
-                  margin: 0,
-                }}>
-                  {JSON.stringify(editedData, null, 2)}
-                </pre>
-              </Box>
-            )}
-          </Box>
-        )}
+        {/* フォーム表示 */}
+        <Box>
+          {blockDefinition.schema?.properties ? (
+            Object.entries(blockDefinition.schema.properties).map(([key, schema]: [string, any]) =>
+              renderField(key, schema, editedData[key])
+            )
+          ) : (
+            <Box>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                スキーマ定義がありません。Raw データを確認してください。
+              </Typography>
+              <pre style={{
+                fontSize: '12px',
+                backgroundColor: '#f5f5f5',
+                padding: '12px',
+                borderRadius: '4px',
+                overflow: 'auto',
+                maxHeight: '200px',
+                whiteSpace: 'pre-wrap',
+                margin: 0,
+              }}>
+                {JSON.stringify(editedData, null, 2)}
+              </pre>
+            </Box>
+          )}
+        </Box>
 
         {/* 操作ボタン */}
         {!readonly && (
