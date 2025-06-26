@@ -149,6 +149,10 @@ export class UsersController {
     switch (role) {
       case UserRole.ADMIN:
         return '管理者';
+      case UserRole.MANAGER:
+        return '部長';
+      case UserRole.SUPERVISOR:
+        return '係長';
       case UserRole.EDITOR:
         return '編集者';
       case UserRole.VIEWER:

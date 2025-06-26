@@ -29,7 +29,7 @@ CREATE TABLE users (
   tenant_id UUID NOT NULL REFERENCES tenants(id),
   email TEXT UNIQUE NOT NULL,
   username TEXT NOT NULL,
-  role TEXT CHECK (role IN ('viewer','editor','admin')) NOT NULL,
+  role TEXT CHECK (role IN ('viewer','editor','supervisor','manager','admin')) NOT NULL,
   password_hash TEXT NOT NULL,
   is_active BOOLEAN DEFAULT true,
   last_login_at TIMESTAMPTZ,

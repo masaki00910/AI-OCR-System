@@ -184,17 +184,37 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({ documentId }) => {
     
     try {
       setActionLoading(true);
-      await workflowApi.startApproval({
+      const requestData = {
         documentId,
         workflowId: selectedWorkflow,
-      });
+      };
+      console.log('Starting approval with data:', requestData);
+      
+      await workflowApi.startApproval(requestData);
       
       setStartDialogOpen(false);
       setSelectedWorkflow('');
       await loadApprovalData();
     } catch (err: any) {
       console.error('Failed to start approval:', err);
-      setError('承認フローの開始に失敗しました');
+      console.error('Error details:', err.response?.data);
+      
+      // エラーレスポンスの詳細を表示
+      let errorMessage = '承認フローの開始に失敗しました';
+      
+      if (err.response?.data?.message) {
+        if (Array.isArray(err.response.data.message)) {
+          // バリデーションエラーの場合、配列の最初のメッセージを表示
+          errorMessage = err.response.data.message[0];
+        } else {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
+      
+      const errorDetails = err.response?.data?.details || '';
+      setError(`${errorMessage}${errorDetails ? ': ' + errorDetails : ''}`);
     } finally {
       setActionLoading(false);
     }
