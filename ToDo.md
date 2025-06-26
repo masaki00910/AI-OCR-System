@@ -443,6 +443,17 @@ interface WorkflowGraphEdge {
 - 非技術者でもワークフロー作成可能
 - ワークフロー定義の可視化・理解容易化
 
+### 🎨 システム起動時のロゴ表示機能（2025/06/26追加）
+✅ **実装完了**
+- ASCIIアートロゴ表示スクリプト作成（Bash/PowerShell両対応）
+  - scripts/show-logo.sh（Bash版）
+  - scripts/show-logo.ps1（PowerShell版）
+- 起動用ラッパースクリプト作成
+  - compose-with-logo.sh（Bash/Linux/macOS用）
+  - compose-with-logo.ps1（PowerShell/Windows用）
+- カラフルなロゴとシステム情報の表示
+- SHARE LAB AI ロゴのスペル修正完了
+
 #### 中期効果（運用3ヶ月後）
 - 複雑な承認フローの設計・運用開始
 - 業務プロセス改善サイクルの確立
