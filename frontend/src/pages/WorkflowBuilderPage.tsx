@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Grid,
@@ -134,6 +135,7 @@ const WorkflowSelectionDialog: React.FC<WorkflowSelectionDialogProps> = ({
 };
 
 const WorkflowBuilderPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [builderState, setBuilderState] = useState<WorkflowBuilderState>({
     selectedWorkflow: null,
     isEditMode: true,
@@ -141,6 +143,7 @@ const WorkflowBuilderPage: React.FC = () => {
     selectedEdge: null,
     isDirty: false,
   });
+  const [pageError, setPageError] = useState<string | null>(null);
 
   // Debug builderState changes
   useEffect(() => {
@@ -154,6 +157,7 @@ const WorkflowBuilderPage: React.FC = () => {
   }, [builderState]);
 
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false);
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
   
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -163,6 +167,7 @@ const WorkflowBuilderPage: React.FC = () => {
   const loadWorkflows = useCallback(async () => {
     try {
       setIsLoading(true);
+      setPageError(null);
       const response = await workflowApi.getDefinitions();
       console.log('API response:', response.data);
       const workflowsData = response.data.map((workflow: any) => ({
@@ -181,6 +186,7 @@ const WorkflowBuilderPage: React.FC = () => {
     } catch (error: any) {
       console.error('Failed to load workflows:', error);
       console.error('Error details:', error.response?.status, error.response?.data);
+      setPageError(`ワークフローの読み込みに失敗しました: ${error.message}`);
       console.log('Using fallback mock data');
       // Use mock data as fallback
       setWorkflows([
@@ -373,6 +379,52 @@ const WorkflowBuilderPage: React.FC = () => {
       }));
     }
   }, [setBuilderState]);
+
+  // Auto-select workflow from URL parameter
+  useEffect(() => {
+    try {
+      const workflowId = searchParams.get('id');
+      const mode = searchParams.get('mode');
+      
+      console.log('URL Parameters:', { workflowId, mode });
+      console.log('Workflows loaded:', workflows.length);
+      console.log('Has auto selected:', hasAutoSelected);
+      
+      if (workflowId && workflows.length > 0 && !hasAutoSelected) {
+        const selectedWorkflow = workflows.find(w => w.id === workflowId);
+        console.log('Found workflow:', selectedWorkflow);
+        
+        if (selectedWorkflow) {
+          console.log('Auto-selecting workflow from URL:', selectedWorkflow);
+          handleWorkflowSelect(selectedWorkflow);
+          setHasAutoSelected(true);
+          
+          // Set edit mode based on URL parameter
+          if (mode === 'edit') {
+            setBuilderState(prev => ({
+              ...prev,
+              isEditMode: true,
+            }));
+          } else {
+            setBuilderState(prev => ({
+              ...prev,
+              isEditMode: false,
+            }));
+          }
+        } else {
+          console.warn('Workflow not found with ID:', workflowId);
+        }
+      }
+      
+      // If no URL parameter and no workflow selected, show dialog
+      if (!workflowId && workflows.length > 0 && !builderState.selectedWorkflow && !workflowDialogOpen) {
+        console.log('No URL parameter, showing workflow selection dialog');
+        setWorkflowDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error in auto-select workflow effect:', error);
+    }
+  }, [searchParams, workflows, handleWorkflowSelect, hasAutoSelected, builderState.selectedWorkflow, workflowDialogOpen]);
 
   const handleNodesChange = useCallback((newNodes: WorkflowGraphNode[]) => {
     setBuilderState(prev => {
@@ -625,6 +677,30 @@ const WorkflowBuilderPage: React.FC = () => {
       isEditMode: !prev.isEditMode,
     }));
   }, []);
+
+  // Handle page errors
+  if (pageError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h6" color="error">
+          エラーが発生しました
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 1 }}>
+          {pageError}
+        </Typography>
+        <Button 
+          variant="contained" 
+          onClick={() => {
+            setPageError(null);
+            window.location.reload();
+          }}
+          sx={{ mt: 2 }}
+        >
+          ページを再読み込み
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
