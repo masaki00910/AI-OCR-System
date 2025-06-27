@@ -189,6 +189,20 @@ const TemplatesPage: React.FC = () => {
     }
   };
 
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!window.confirm('このテンプレートを削除しますか？')) {
+      return;
+    }
+
+    try {
+      await templateApi.delete(templateId);
+      await loadTemplates();
+    } catch (err: any) {
+      console.error('Failed to delete template:', err);
+      setError('テンプレートの削除に失敗しました');
+    }
+  };
+
   const openEditDialog = (template: Template) => {
     setEditDialog(template);
     setFormData({
@@ -361,6 +375,14 @@ const TemplatesPage: React.FC = () => {
                       onClick={() => handleCreateVersion(template.id)}
                     >
                       新バージョン
+                    </Button>
+                    <Button
+                      size="small"
+                      startIcon={<Delete />}
+                      color="error"
+                      onClick={() => handleDeleteTemplate(template.id)}
+                    >
+                      削除
                     </Button>
                   </CardActions>
                 )}
