@@ -15,6 +15,7 @@ import {
   Construction,
   People,
   History,
+  Tune,
 } from '@mui/icons-material';
 
 const Navigation: React.FC = () => {
@@ -29,6 +30,7 @@ const Navigation: React.FC = () => {
     if (pathname === '/workflow-builder') return 4;
     if (pathname === '/users') return 5;
     if (pathname === '/audit-logs') return 6;
+    if (pathname === '/settings') return 7;
     return 0;
   };
 
@@ -56,6 +58,9 @@ const Navigation: React.FC = () => {
         break;
       case 6:
         navigate('/audit-logs');
+        break;
+      case 7:
+        navigate('/settings');
         break;
       default:
         break;
@@ -101,6 +106,10 @@ const Navigation: React.FC = () => {
         <BottomNavigationAction
           label="監査ログ"
           icon={<History />}
+        />
+        <BottomNavigationAction
+          label="設定"
+          icon={<Tune />}
         />
       </BottomNavigation>
     </Paper>

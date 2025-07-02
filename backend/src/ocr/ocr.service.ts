@@ -8,6 +8,7 @@ import { PromptTemplate } from '../entities/prompt-template.entity';
 import { Extraction } from '../entities/extraction.entity';
 import { Page } from '../entities/page.entity';
 import { Document } from '../entities/document.entity';
+import { TenantsService } from '../tenants/tenants.service';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { ExtractOcrDto } from './dto/extract-ocr.dto';
@@ -33,11 +34,13 @@ export interface OCRResult {
 export class OcrService {
   private readonly logger = new Logger(OcrService.name);
   private anthropic: Anthropic;
+  private geminiApiKey: string;
   private ajv: Ajv;
 
   constructor(
     private configService: ConfigService,
     private storageService: StorageService,
+    private tenantsService: TenantsService,
     @InjectRepository(Template)
     private templateRepository: Repository<Template>,
     @InjectRepository(Extraction)
@@ -47,12 +50,22 @@ export class OcrService {
     @InjectRepository(Document)
     private documentRepository: Repository<Document>,
   ) {
-    const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY is not set in environment variables');
+    // Initialize Claude API
+    const anthropicApiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
+      this.logger.warn('ANTHROPIC_API_KEY is not set in environment variables');
+    } else {
+      this.anthropic = new Anthropic({ apiKey: anthropicApiKey });
     }
     
-    this.anthropic = new Anthropic({ apiKey });
+    // Initialize Gemini API key
+    this.geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
+    if (!this.geminiApiKey) {
+      this.logger.warn('GEMINI_API_KEY is not set in environment variables');
+    } else {
+      this.logger.log(`Gemini API key configured: ${this.geminiApiKey.substring(0, 20)}...`);
+    }
+    
     this.ajv = new Ajv({ allErrors: true });
     addFormats(this.ajv); // Add support for date, time, email, etc. formats
   }
@@ -78,45 +91,26 @@ export class OcrService {
         throw new HttpException('Template not found', HttpStatus.NOT_FOUND);
       }
 
+      // テナントのLLM設定を取得
+      const llmSettings = await this.tenantsService.getLLMSettings(tenantId);
+      const selectedModel = llmSettings.defaultModel || 'claude';
+
       // プロンプトを生成
       const prompts = await this.generatePrompts(template, variables);
       
-      // Claude APIを呼び出し
-      this.logger.debug('Sending request to Claude API...');
-      const message = await this.anthropic.messages.create({
-        model: this.configService.get('CLAUDE_MODEL', 'claude-4-sonnet-20250514'),
-        max_tokens: 4096,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: 'image/png',
-                  data: imageBase64,
-                },
-              },
-              ...prompts.map(prompt => ({
-                type: 'text' as const,
-                text: prompt,
-              })),
-            ],
-          },
-        ],
-      });
-
-      this.logger.debug('Received response from Claude API');
-
-      // レスポンスからJSONを抽出
-      const content = message.content[0];
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response format');
-      }
-
       let extractedData: any;
-      extractedData = this.parseClaudeResponse(content.text, 'performOcr');
+      let modelName: string;
+
+      // 選択されたモデルでOCR実行
+      if (selectedModel === 'gemini') {
+        this.logger.debug('Sending request to Gemini API...');
+        extractedData = await this.processWithGemini(imageBase64, prompts);
+        modelName = 'gemini-2.0-flash';
+      } else {
+        this.logger.debug('Sending request to Claude API...');
+        extractedData = await this.processWithClaude(imageBase64, prompts);
+        modelName = this.configService.get('CLAUDE_MODEL', 'claude-4-sonnet-20250514');
+      }
 
       // JSON Schemaでバリデーション
       const validationErrors = this.validateExtraction(extractedData, template.schemaJson);
@@ -153,7 +147,7 @@ export class OcrService {
         pageId: actualPageId,
         content: extractedData,
         confidence: Math.max(0.1, Math.min(1.0, confidence)),
-        modelName: 'claude-4-sonnet',
+        modelName: modelName,
         promptUsed: `template_v${template.version}`,
       });
 
@@ -345,45 +339,26 @@ ${example}
         }
       }
 
+      // テナントのLLM設定を取得
+      const llmSettings = await this.tenantsService.getLLMSettings(actualTenantId);
+      const selectedModel = llmSettings.defaultModel || 'claude';
+
       // ブロック用プロンプトを生成
       const prompts = await this.generateBlockPrompts(template, block);
       
-      // Claude APIを呼び出し
-      this.logger.debug(`Sending block OCR request to Claude API for block: ${blockId}`);
-      const message = await this.anthropic.messages.create({
-        model: this.configService.get('CLAUDE_MODEL', 'claude-4-sonnet-20250514'),
-        max_tokens: 4096,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: 'image/png',
-                  data: imageBase64,
-                },
-              },
-              ...prompts.map(prompt => ({
-                type: 'text' as const,
-                text: prompt,
-              })),
-            ],
-          },
-        ],
-      });
-
-      this.logger.debug(`Received response from Claude API for block: ${blockId}`);
-
-      // レスポンスからJSONを抽出
-      const content = message.content[0];
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response format');
-      }
-
       let extractedData: any;
-      extractedData = this.parseClaudeResponse(content.text, `performBlockOcr-${blockId}`);
+      let modelName: string;
+
+      // 選択されたモデルでOCR実行
+      if (selectedModel === 'gemini') {
+        this.logger.debug(`Sending block OCR request to Gemini API for block: ${blockId}`);
+        extractedData = await this.processWithGemini(imageBase64, prompts);
+        modelName = 'gemini-2.0-flash';
+      } else {
+        this.logger.debug(`Sending block OCR request to Claude API for block: ${blockId}`);
+        extractedData = await this.processWithClaude(imageBase64, prompts);
+        modelName = this.configService.get('CLAUDE_MODEL', 'claude-4-sonnet-20250514');
+      }
 
       // ブロックのスキーマでバリデーション
       const validationErrors = this.validateExtraction(extractedData, block.schema);
@@ -399,7 +374,7 @@ ${example}
         content: extractedData,
         extractedData: extractedData, // extracted_dataフィールドにも保存
         confidence: Math.max(0.1, Math.min(1.0, confidence)),
-        modelName: 'claude-4-sonnet',
+        modelName: modelName,
         promptUsed: `block_${blockId}_v${template.version}`,
         createdById: userId,
       });
@@ -465,6 +440,112 @@ ${example}
 ${JSON.stringify(block.schema, null, 2)}
 
 抽出したデータをJSON形式で出力してください。`;
+  }
+
+  /**
+   * Claude APIでOCR処理を実行
+   */
+  private async processWithClaude(imageBase64: string, prompts: string[]): Promise<any> {
+    if (!this.anthropic) {
+      throw new HttpException('Claude API is not configured', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    const message = await this.anthropic.messages.create({
+      model: this.configService.get('CLAUDE_MODEL', 'claude-4-sonnet-20250514'),
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/png',
+                data: imageBase64,
+              },
+            },
+            ...prompts.map(prompt => ({
+              type: 'text' as const,
+              text: prompt,
+            })),
+          ],
+        },
+      ],
+    });
+
+    this.logger.debug('Received response from Claude API');
+
+    // レスポンスからJSONを抽出
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response format');
+    }
+
+    return this.parseClaudeResponse(content.text, 'processWithClaude');
+  }
+
+  /**
+   * Gemini APIでOCR処理を実行
+   */
+  private async processWithGemini(imageBase64: string, prompts: string[]): Promise<any> {
+    if (!this.geminiApiKey) {
+      throw new HttpException('Gemini API key is not configured', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    const promptText = prompts.join('\n\n');
+
+    // Gemini 2.0 Flash APIのエンドポイント
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.geminiApiKey}`;
+
+    // リクエストボディ
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: promptText
+            },
+            {
+              inline_data: {
+                mime_type: "image/png",
+                data: imageBase64
+              }
+            }
+          ]
+        }
+      ]
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      this.logger.error('Gemini OCR request failed:', errorData);
+      throw new HttpException(`Gemini OCR request failed: ${response.status}`, HttpStatus.BAD_REQUEST);
+    }
+
+    const ocrData = await response.json();
+
+    let ocrText = '';
+    if (ocrData.candidates && ocrData.candidates.length > 0) {
+      const firstCandidate = ocrData.candidates[0];
+      if (firstCandidate.content?.parts) {
+        ocrText = firstCandidate.content.parts.map(part => part.text).join('\n');
+      }
+    }
+
+    this.logger.debug('Received response from Gemini API');
+    this.logger.debug(`Gemini response: ${ocrText.substring(0, 300)}...`);
+
+    // GeminiのレスポンスもClaudeと同じパーサーを使用（JSONフォーマットが期待されるため）
+    return this.parseClaudeResponse(ocrText, 'processWithGemini');
   }
 
   /**

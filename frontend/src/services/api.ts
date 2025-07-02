@@ -202,6 +202,19 @@ export const auditLogsApi = {
   getOperations: () => api.get('/api/v1/audit-logs/operations/list'),
 };
 
+// テナント設定関連
+export const tenantApi = {
+  getLLMSettings: () => api.get('/api/v1/tenants/settings/llm'),
+  updateLLMSettings: (data: {
+    defaultModel: 'claude' | 'gemini';
+    enabledModels: ('claude' | 'gemini')[];
+    claudeModel?: string;
+  }) => api.put('/api/v1/tenants/settings/llm', data),
+  
+  getSettings: () => api.get('/api/v1/tenants/settings'),
+  updateSettings: (data: { [key: string]: any }) => api.put('/api/v1/tenants/settings', data),
+};
+
 // 承認ワークフロー関連
 export const workflowApi = {
   // ワークフロー定義の管理
