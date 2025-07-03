@@ -120,6 +120,7 @@ export class DocumentsService {
       .where('document.tenantId = :tenantId', { tenantId })
       .leftJoinAndSelect('document.template', 'template')
       .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
+      .leftJoinAndSelect('document.extractions', 'extractions', 'extractions.isDeleted = false')
       .orderBy('document.createdAt', 'DESC');
 
     if (options?.templateId) {

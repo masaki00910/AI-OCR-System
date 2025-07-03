@@ -13,6 +13,7 @@ import { ExportsModule } from './exports/exports.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { UsersModule } from './users/users.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { TenantsModule } from './tenants/tenants.module';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
 
 // Import all entities
@@ -88,6 +89,7 @@ import { StateAction } from './entities/state-action.entity';
     WorkflowsModule,
     UsersModule,
     AuditLogsModule,
+    TenantsModule,
   ],
   controllers: [AppController],
   providers: [

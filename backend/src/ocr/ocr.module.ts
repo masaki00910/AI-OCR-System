@@ -9,6 +9,7 @@ import { Page } from '../entities/page.entity';
 import { Document } from '../entities/document.entity';
 import { AuthModule } from '../auth/auth.module';
 import { StorageModule } from '../storage/storage.module';
+import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { StorageModule } from '../storage/storage.module';
     TypeOrmModule.forFeature([Template, Extraction, Page, Document]),
     AuthModule,
     StorageModule,
+    TenantsModule,
   ],
   controllers: [OcrController],
   providers: [OcrService],

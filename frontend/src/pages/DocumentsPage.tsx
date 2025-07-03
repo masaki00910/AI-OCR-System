@@ -21,7 +21,7 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
-import { Add, Upload, MoreVert, Settings, Delete, FileDownload } from '@mui/icons-material';
+import { Add, Upload, MoreVert, Settings, Delete, FileDownload, Psychology, SmartToy } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { templateApi, documentApi } from '../services/api';
 
@@ -46,7 +46,77 @@ interface Document {
   template: {
     name: string;
   };
+  extractions?: {
+    modelName?: string;
+  }[];
 }
+
+// Helper functions
+const getStatusLabel = (status: string): string => {
+  const statusMap: { [key: string]: string } = {
+    'uploaded': 'アップロード済み',
+    'processing': '処理中',
+    'completed': '完了',
+    'error': 'エラー',
+    'pending': '待機中',
+  };
+  return statusMap[status] || status;
+};
+
+const getStatusColor = (status: string): 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' => {
+  const colorMap: { [key: string]: 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' } = {
+    'uploaded': 'info',
+    'processing': 'warning',
+    'completed': 'success',
+    'error': 'error',
+    'pending': 'info',
+  };
+  return colorMap[status] || 'primary';
+};
+
+const getLLMInfo = (extractions?: { modelName?: string }[]) => {
+  if (!extractions || extractions.length === 0) {
+    return null;
+  }
+
+  // Get unique model names
+  const modelNames = [...new Set(extractions.map(e => e.modelName).filter(Boolean))];
+  
+  if (modelNames.length === 0) {
+    return null;
+  }
+
+  // If multiple models, show mixed
+  if (modelNames.length > 1) {
+    return {
+      label: 'Mixed',
+      color: 'secondary' as const,
+      icon: <SmartToy />,
+    };
+  }
+
+  const modelName = modelNames[0];
+  
+  if (modelName?.includes('claude')) {
+    return {
+      label: 'Claude',
+      color: 'primary' as const,
+      icon: <Psychology />,
+    };
+  } else if (modelName?.includes('gemini')) {
+    return {
+      label: 'Gemini',
+      color: 'secondary' as const,
+      icon: <SmartToy />,
+    };
+  }
+
+  return {
+    label: modelName || 'Unknown',
+    color: 'default' as const,
+    icon: <SmartToy />,
+  };
+};
 
 const DocumentsPage: React.FC = () => {
   const { user } = useAuth();
@@ -293,6 +363,18 @@ const DocumentsPage: React.FC = () => {
                         color={getStatusColor(document.status) as any}
                         size="small"
                       />
+                      {(() => {
+                        const llmInfo = getLLMInfo(document.extractions);
+                        return llmInfo ? (
+                          <Chip
+                            label={llmInfo.label}
+                            color={llmInfo.color as any}
+                            size="small"
+                            icon={llmInfo.icon}
+                            variant="outlined"
+                          />
+                        ) : null;
+                      })()}
                       <Button
                         size="small"
                         variant="outlined"

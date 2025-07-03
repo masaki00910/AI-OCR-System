@@ -16,6 +16,7 @@ import WorkflowsPage from './pages/WorkflowsPage';
 import WorkflowBuilderPage from './pages/WorkflowBuilderPage';
 import UsersPage from './pages/UsersPage';
 import AuditLogsPage from './pages/AuditLogsPage';
+import SettingsPage from './pages/SettingsPage';
 import Navigation from './components/Navigation';
 
 const theme = createTheme({
@@ -66,6 +67,7 @@ function App() {
                     <Route path="/workflow-builder" element={<WorkflowBuilderPage />} />
                     <Route path="/users" element={<UsersPage />} />
                     <Route path="/audit-logs" element={<AuditLogsPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/inspection/:documentId" element={<InspectionPage />} />
                     {/* Legacy routes for backward compatibility */}
                     <Route path="/projects" element={<Navigate to="/documents" replace />} />
