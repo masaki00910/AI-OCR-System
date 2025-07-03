@@ -205,6 +205,66 @@ INSERT INTO templates (id, tenant_id, name, description, version, schema_json, c
    }',
    '12345678-abcd-1234-abcd-123456789001');
 
+-- 文字予測モデルテンプレート（手書き文字認識用）
+INSERT INTO templates (id, tenant_id, name, description, version, blocks, metadata, created_by) VALUES
+  ('77777777-7777-7777-7777-777777777777', '11111111-1111-1111-1111-111111111111', 
+   '文字予測モデル', 'scikit-learn手書き文字認識システム', 1,
+   '[
+     {
+       "block_id": "handwritten_digits",
+       "label": "手書き数字",
+       "prompt": "手書きで書かれた数字を認識してください",
+       "useHandwriting": true,
+       "schema": {
+         "type": "object",
+         "properties": {
+           "recognized_text": {
+             "type": "string",
+             "title": "認識された文字",
+             "description": "手書きで書かれた数字文字列"
+           },
+           "confidence": {
+             "type": "number",
+             "title": "信頼度",
+             "description": "認識の信頼度スコア (0-1)",
+             "minimum": 0,
+             "maximum": 1
+           },
+           "digit_count": {
+             "type": "integer",
+             "title": "文字数",
+             "description": "認識された数字の個数"
+           }
+         },
+         "required": ["recognized_text", "confidence"]
+       }
+     },
+     {
+       "block_id": "handwritten_text",
+       "label": "手書き文字",
+       "prompt": "手書きで書かれた文字や記号を認識してください",
+       "useHandwriting": true,
+       "schema": {
+         "type": "object",
+         "properties": {
+           "text": {
+             "type": "string",
+             "title": "認識されたテキスト",
+             "description": "手書きで書かれた文字列"
+           },
+           "processing_method": {
+             "type": "string",
+             "title": "処理方法",
+             "default": "python_handwriting_ocr"
+           }
+         },
+         "required": ["text"]
+       }
+     }
+   ]',
+   '{"useHandwriting": true, "description": "手書き文字認識専用テンプレート", "ocr_engine": "python_scikit_learn"}',
+   '12345678-abcd-1234-abcd-123456789001');
+
 
 -- プロンプトテンプレート（領収書用）
 -- 共通プロンプト（block_id = NULL）
@@ -236,10 +296,39 @@ INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_ord
   - よくある記載: 「登録番号:T123456789012」「インボイス登録番号:T123456789012」「適格請求書発行事業者登録番号:T123456789012」
   - 領収書の下部や発行者情報の近くに記載されることが多いです', 2, true);
 
+-- 文字予測モデル用プロンプトテンプレート
+INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_order, is_active) VALUES
+  ('77777777-7777-7777-7777-777777777777', 'handwritten_digits', 'system', 
+   'この画像には手書きで書かれた数字が含まれています。scikit-learnの手書き数字認識モデルを使用して、正確に数字を読み取ってください。', 1, true),
+  
+  ('77777777-7777-7777-7777-777777777777', 'handwritten_digits', 'user', 
+   '手書き数字を認識して以下の形式で出力してください：
+
+{{schema}}
+
+重要事項：
+- 0から9までの数字のみを認識対象とします
+- 不明瞭な文字は認識対象外とします
+- 信頼度が低い場合は、その旨を報告してください
+- 複数の数字がある場合は、左から右へ順番に読み取ってください', 2, true),
+
+  ('77777777-7777-7777-7777-777777777777', 'handwritten_text', 'system', 
+   'この画像には手書きで書かれた文字が含まれています。手書き文字認識システムを使用して文字を読み取ってください。', 1, true),
+  
+  ('77777777-7777-7777-7777-777777777777', 'handwritten_text', 'user', 
+   '手書き文字を認識して以下の形式で出力してください：
+
+{{schema}}
+
+認識指針：
+- 判読可能な文字のみを抽出してください
+- 不明瞭な部分は「?」で表現してください
+- 数字、アルファベット、記号を含む場合があります', 2, true);
+
 
 -- 勤怠票テンプレート（テスト商事用）
 INSERT INTO templates (id, tenant_id, name, description, version, blocks, created_by) VALUES
-  ('77777777-7777-7777-7777-777777777777', '22222222-2222-2222-2222-222222222222', 
+  ('88888888-8888-8888-8888-888888888888', '22222222-2222-2222-2222-222222222222', 
    '勤怠票テンプレート', '月次勤怠票フォーマット', 1,
    '[
      {
@@ -356,7 +445,7 @@ INSERT INTO exports (id, tenant_id, template_id, format, filter_json, file_path,
    NULL, NULL, 'failed', 'データ取得中にタイムアウトが発生しました', 
    '12345678-abcd-1234-abcd-123456789001', now() - interval '4 hours', NULL),
    
-  ('12345678-abcd-1234-abcd-123456789007', '22222222-2222-2222-2222-222222222222', '77777777-7777-7777-7777-777777777777', 'pdf', 
+  ('12345678-abcd-1234-abcd-123456789007', '22222222-2222-2222-2222-222222222222', '88888888-8888-8888-8888-888888888888', 'pdf', 
    '{"status": ["completed"]}', 
    '/exports/timesheet_report_20240620.pdf', 1024000, 'completed', NULL, 
    '12345678-abcd-1234-abcd-123456789002', now() - interval '1 day', now() - interval '20 hours'),
