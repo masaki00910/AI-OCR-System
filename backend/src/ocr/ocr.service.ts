@@ -14,6 +14,8 @@ import addFormats from 'ajv-formats';
 import { ExtractOcrDto } from './dto/extract-ocr.dto';
 import * as sharp from 'sharp';
 import { StorageService } from '../storage/storage.service';
+import * as https from 'https';
+import * as http from 'http';
 
 export interface OCRRequest {
   imageBase64: string;
@@ -36,6 +38,7 @@ export class OcrService {
   private anthropic: Anthropic;
   private geminiApiKey: string;
   private ajv: Ajv;
+  private pythonOcrUrl: string;
 
   constructor(
     private configService: ConfigService,
@@ -68,6 +71,10 @@ export class OcrService {
     
     this.ajv = new Ajv({ allErrors: true });
     addFormats(this.ajv); // Add support for date, time, email, etc. formats
+    
+    // Python OCRサービス用URL設定
+    this.pythonOcrUrl = this.configService.get<string>('PYTHON_OCR_URL', 'http://localhost:8000');
+    this.logger.log(`Python OCR service URL: ${this.pythonOcrUrl}`);
   }
 
   async performOcr(
@@ -245,7 +252,123 @@ ${example}
 
 
   /**
-   * Ver 1.1: ブロック単位でのOCR実行
+   * Python OCRサービスを呼び出して手書き文字認識を実行
+   */
+  private async performPythonOcr(
+    imageBase64: string,
+    template: Template,
+    block: any,
+  ): Promise<{ extractedData: any; confidence: number }> {
+    try {
+      this.logger.debug('Calling Python OCR service for handwriting recognition');
+      
+      const requestData = {
+        image: imageBase64,
+        options: {
+          block_id: block.block_id,
+          block_label: block.label,
+          template_id: template.id,
+        }
+      };
+
+      const response = await this.makeHttpRequest('/api/v1/ocr/handwriting', 'POST', requestData);
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Python OCR service failed');
+      }
+
+      this.logger.debug(`Python OCR response: text="${response.text}", confidence=${response.confidence}`);
+
+      // Python OCRサービスのレスポンスをフォーマット
+      const extractedData = {
+        text: response.text,
+        confidence: response.confidence,
+        digits: response.digits || [],
+        boxes: response.boxes || [],
+        processing_method: 'python_handwriting_ocr'
+      };
+
+      return {
+        extractedData,
+        confidence: response.confidence || 0.8
+      };
+
+    } catch (error) {
+      this.logger.error('Python OCR service error:', error);
+      
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('timeout')) {
+        throw new HttpException(
+          'Hand writing recognition service is temporarily unavailable',
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      
+      throw new HttpException(
+        `Handwriting recognition failed: ${error.message}`,
+        HttpStatus.BAD_GATEWAY
+      );
+    }
+  }
+
+  /**
+   * Node.js標準ライブラリを使用したHTTPリクエスト
+   */
+  private async makeHttpRequest(path: string, method: string = 'GET', data?: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const url = new URL(this.pythonOcrUrl + path);
+      const isHttps = url.protocol === 'https:';
+      const httpModule = isHttps ? https : http;
+      
+      const requestData = data ? JSON.stringify(data) : undefined;
+      
+      const options = {
+        hostname: url.hostname,
+        port: url.port || (isHttps ? 443 : 80),
+        path: url.pathname + url.search,
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(requestData && { 'Content-Length': Buffer.byteLength(requestData) })
+        },
+        timeout: 30000 // 30秒タイムアウト
+      };
+
+      const req = httpModule.request(options, (res) => {
+        let responseData = '';
+        
+        res.on('data', (chunk) => {
+          responseData += chunk;
+        });
+        
+        res.on('end', () => {
+          try {
+            const parsedData = JSON.parse(responseData);
+            resolve(parsedData);
+          } catch (parseError) {
+            reject(new Error(`Invalid JSON response: ${responseData}`));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+
+      if (requestData) {
+        req.write(requestData);
+      }
+      
+      req.end();
+    });
+  }
+
+  /**
+   * Ver 1.1: ブロック単位でのOCR実行（手書き文字認識対応）
    */
   async performBlockOcr(
     extractOcrDto: ExtractOcrDto,
@@ -339,32 +462,50 @@ ${example}
         }
       }
 
-      // テナントのLLM設定を取得
-      const llmSettings = await this.tenantsService.getLLMSettings(actualTenantId);
-      const selectedModel = llmSettings.defaultModel || 'claude';
-
-      // ブロック用プロンプトを生成
-      const prompts = await this.generateBlockPrompts(template, block);
+      // 手書き文字認識を使用するかどうか判定
+      const useHandwritingOcr = this.shouldUseHandwritingOcr(template, block);
       
       let extractedData: any;
+      let confidence: number;
+      let validationErrors: any[] = [];
       let modelName: string;
 
-      // 選択されたモデルでOCR実行
-      if (selectedModel === 'gemini') {
-        this.logger.debug(`Sending block OCR request to Gemini API for block: ${blockId}`);
-        extractedData = await this.processWithGemini(imageBase64, prompts);
-        modelName = 'gemini-2.0-flash';
+      if (useHandwritingOcr) {
+        this.logger.debug(`Using Python handwriting OCR for block: ${blockId}`);
+        
+        // Python OCRサービスを呼び出し
+        const pythonResult = await this.performPythonOcr(imageBase64, template, block);
+        extractedData = pythonResult.extractedData;
+        confidence = pythonResult.confidence;
+        modelName = 'python-handwriting-ocr';
+        
+        // ブロックのスキーマでバリデーション（手書き文字認識の場合は緩い検証）
+        validationErrors = this.validateHandwritingExtraction(extractedData, block.schema);
       } else {
-        this.logger.debug(`Sending block OCR request to Claude API for block: ${blockId}`);
-        extractedData = await this.processWithClaude(imageBase64, prompts);
-        modelName = this.configService.get('CLAUDE_MODEL', 'claude-4-sonnet-20250514');
+        // テナントのLLM設定を取得
+        const llmSettings = await this.tenantsService.getLLMSettings(actualTenantId);
+        const selectedModel = llmSettings.defaultModel || 'claude';
+
+        // ブロック用プロンプトを生成
+        const prompts = await this.generateBlockPrompts(template, block);
+
+        // 選択されたモデルでOCR実行
+        if (selectedModel === 'gemini') {
+          this.logger.debug(`Sending block OCR request to Gemini API for block: ${blockId}`);
+          extractedData = await this.processWithGemini(imageBase64, prompts);
+          modelName = 'gemini-2.0-flash';
+        } else {
+          this.logger.debug(`Sending block OCR request to Claude API for block: ${blockId}`);
+          extractedData = await this.processWithClaude(imageBase64, prompts);
+          modelName = this.configService.get('CLAUDE_MODEL', 'claude-4-sonnet-20250514');
+        }
+
+        // ブロックのスキーマでバリデーション
+        validationErrors = this.validateExtraction(extractedData, block.schema);
+
+        // 信頼度スコアを計算
+        confidence = validationErrors.length === 0 ? 0.95 : 0.7 - (validationErrors.length * 0.1);
       }
-
-      // ブロックのスキーマでバリデーション
-      const validationErrors = this.validateExtraction(extractedData, block.schema);
-
-      // 信頼度スコアを計算
-      const confidence = validationErrors.length === 0 ? 0.95 : 0.7 - (validationErrors.length * 0.1);
 
       // 抽出結果を保存
       const extraction = await this.extractionRepository.save({
@@ -397,6 +538,72 @@ ${example}
         error.message || 'Block OCR processing failed',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  /**
+   * 手書き文字認識を使用するかどうか判定
+   */
+  private shouldUseHandwritingOcr(template: Template, block: any): boolean {
+    // 1. テンプレート名に「文字予測モデル」が含まれているかチェック
+    if (template.name && template.name.includes('文字予測モデル')) {
+      this.logger.debug('Using handwriting OCR: template name contains "文字予測モデル"');
+      return true;
+    }
+    
+    // 2. テンプレートの設定をチェック
+    if (template.metadata && template.metadata.useHandwriting === true) {
+      this.logger.debug('Using handwriting OCR: template metadata.useHandwriting is true');
+      return true;
+    }
+    
+    // 3. ブロックの設定をチェック
+    if (block.useHandwriting === true) {
+      this.logger.debug('Using handwriting OCR: block.useHandwriting is true');
+      return true;
+    }
+    
+    // 4. ブロックラベルに手書き関連キーワードが含まれているかチェック
+    const handwritingKeywords = ['手書き', '手記', '署名', 'handwriting', 'signature', '数字', '文字'];
+    if (block.label && handwritingKeywords.some(keyword => 
+      block.label.toLowerCase().includes(keyword.toLowerCase())
+    )) {
+      this.logger.debug(`Using handwriting OCR: block label "${block.label}" contains handwriting keywords`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * 手書き文字認識結果用のバリデーション（緩い検証）
+   */
+  private validateHandwritingExtraction(data: any, schema: any): any[] {
+    try {
+      // 手書き文字認識の場合は、基本的なデータ構造のみ検証
+      if (!data || typeof data !== 'object') {
+        return [{ message: 'Invalid data structure', path: '', value: data }];
+      }
+      
+      // textフィールドが存在するか確認
+      if (!data.text && !data.value && !data.content) {
+        return [{ message: 'No recognized text found', path: 'text', value: data }];
+      }
+      
+      // 空文字列でないかチェック
+      const recognizedText = data.text || data.value || data.content || '';
+      if (recognizedText.trim() === '') {
+        return [{ message: 'Empty text recognized', path: 'text', value: recognizedText }];
+      }
+      
+      // 手書き文字認識の場合は、スキーマバリデーションは緩くする
+      this.logger.debug('Handwriting OCR validation passed with relaxed rules');
+      return [];
+      
+    } catch (error) {
+      this.logger.warn('Handwriting validation error:', error);
+      // バリデーションエラーでも処理を続行
+      return [];
     }
   }
 

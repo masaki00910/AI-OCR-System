@@ -42,6 +42,9 @@ export class Template {
   @Column({ type: 'jsonb', nullable: true })
   blocks: BlockDefinition[] | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: { [key: string]: any } | null;
+
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 

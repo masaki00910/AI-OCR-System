@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres_pass
       POSTGRES_DB: generic_doc_system
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d
@@ -83,12 +83,15 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       SESSION_SECRET: ${SESSION_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN}
+      PYTHON_OCR_URL: http://python-ocr:8000
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      python-ocr:
         condition: service_healthy
     volumes:
       - ./backend:/app
@@ -109,6 +112,26 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+  python-ocr:
+    build:
+      context: ./python-ocr
+      dockerfile: Dockerfile
+    container_name: python-ocr
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./python-ocr:/app
+      - ./python-ocr/models:/app/models
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:
