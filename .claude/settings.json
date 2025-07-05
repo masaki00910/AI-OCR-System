@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '✅ 処理完了時刻: '$(date '+%Y年%m月%d日（%a）%H:%M')"
+          },
+          {
+            "type": "command",
+            "command": "npx ccusage@latest"
+          }
+        ]
+      }
+    ]
+  }
+}
