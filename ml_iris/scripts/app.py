@@ -14,15 +14,27 @@ import os
 import joblib
 import numpy as np
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
 # モデルファイルのパス
 # Dockerコンテナ内と通常の実行環境の両方に対応
-if os.path.exists("./iris_model.pkl"):
-    MODEL_PATH = "./iris_model.pkl"
-else:
-    MODEL_PATH = "../model/iris_model.pkl"
+possible_paths = [
+    "./iris_model.pkl",
+    "../model/iris_model.pkl",
+    "/app/model/iris_model.pkl",
+    "model/iris_model.pkl"
+]
+
+MODEL_PATH = None
+for path in possible_paths:
+    if os.path.exists(path):
+        MODEL_PATH = path
+        break
+
+if MODEL_PATH is None:
+    MODEL_PATH = "../model/iris_model.pkl"  # デフォルト
 
 # モデルの読み込み
 try:
@@ -38,6 +50,15 @@ app = FastAPI(
     title="アイリス分類API",
     description="アイリスの特徴量から品種を予測するAPI",
     version="1.0.0"
+)
+
+# CORS設定を追加
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 本番環境では適切に制限する
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # 入力データのスキーマ定義

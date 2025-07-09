@@ -17,10 +17,21 @@ import numpy as np
 
 # モデルファイルのパス
 # Dockerコンテナ内と通常の実行環境の両方に対応
-if os.path.exists("./iris_model.pkl"):
-    MODEL_PATH = "./iris_model.pkl"
-else:
-    MODEL_PATH = "../model/iris_model.pkl"
+possible_paths = [
+    "./iris_model.pkl",
+    "../model/iris_model.pkl",
+    "/app/model/iris_model.pkl",
+    "model/iris_model.pkl"
+]
+
+MODEL_PATH = None
+for path in possible_paths:
+    if os.path.exists(path):
+        MODEL_PATH = path
+        break
+
+if MODEL_PATH is None:
+    MODEL_PATH = "../model/iris_model.pkl"  # デフォルト
 
 def load_model():
     """保存されたモデルを読み込む"""
