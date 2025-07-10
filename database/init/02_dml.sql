@@ -631,3 +631,123 @@ INSERT INTO audit_logs (tenant_id, user_id, table_name, record_id, operation, ol
   ('11111111-1111-1111-1111-111111111111', '12345678-abcd-1234-abcd-123456789002', 'approval_instances', 'aa000001-0001-0001-0001-000000000001', 'INSERT',
    NULL, '{"workflow_id": "12345678-1234-1234-1234-123456789011", "status": "active"}',
    '192.168.1.101', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+
+-- ===============================================
+-- アイリス予測用テンプレート
+-- ===============================================
+
+-- アイリス予測用テンプレート
+INSERT INTO templates (
+    id,
+    tenant_id,
+    name,
+    description,
+    version,
+    schema_json,
+    blocks,
+    is_active,
+    is_deleted,
+    created_by,
+    created_at,
+    updated_at
+) VALUES (
+    '88888888-8888-8888-8888-888888888888',
+    '11111111-1111-1111-1111-111111111111',
+    'アイリス予測用テンプレート',
+    'アイリスの特徴量を抽出し、機械学習モデルで品種予測を行うためのテンプレート',
+    1,
+    '{
+        "type": "object",
+        "properties": {
+            "sepal_length": {
+                "type": "number",
+                "description": "がく片の長さ（cm）",
+                "minimum": 0,
+                "maximum": 10
+            },
+            "sepal_width": {
+                "type": "number",
+                "description": "がく片の幅（cm）",
+                "minimum": 0,
+                "maximum": 10
+            },
+            "petal_length": {
+                "type": "number",
+                "description": "花弁の長さ（cm）",
+                "minimum": 0,
+                "maximum": 10
+            },
+            "petal_width": {
+                "type": "number",
+                "description": "花弁の幅（cm）",
+                "minimum": 0,
+                "maximum": 10
+            }
+        },
+        "required": ["sepal_length", "sepal_width", "petal_length", "petal_width"]
+    }',
+    '[
+        {
+            "block_id": "iris_features",
+            "label": "アイリス特徴量",
+            "prompt": "この画像からアイリスの特徴量を抽出してください。\\n\\n抽出する項目：\\n1. sepal_length: がく片の長さ（cm）\\n2. sepal_width: がく片の幅（cm）\\n3. petal_length: 花弁の長さ（cm）\\n4. petal_width: 花弁の幅（cm）\\n\\n数値は小数点第1位まで正確に読み取ってください。単位がcm以外の場合は適切に変換してください。",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "sepal_length": {
+                        "type": "number",
+                        "description": "がく片の長さ（cm）",
+                        "minimum": 0,
+                        "maximum": 10
+                    },
+                    "sepal_width": {
+                        "type": "number",
+                        "description": "がく片の幅（cm）",
+                        "minimum": 0,
+                        "maximum": 10
+                    },
+                    "petal_length": {
+                        "type": "number",
+                        "description": "花弁の長さ（cm）",
+                        "minimum": 0,
+                        "maximum": 10
+                    },
+                    "petal_width": {
+                        "type": "number",
+                        "description": "花弁の幅（cm）",
+                        "minimum": 0,
+                        "maximum": 10
+                    }
+                },
+                "required": ["sepal_length", "sepal_width", "petal_length", "petal_width"]
+            }
+        }
+    ]',
+    true,
+    false,
+    '12345678-abcd-1234-abcd-123456789001',
+    NOW(),
+    NOW()
+);
+
+-- アイリス予測用プロンプトテンプレート
+INSERT INTO prompt_templates (template_id, block_id, role, content, sequence_order, is_active) VALUES
+  ('88888888-8888-8888-8888-888888888888', NULL, 'system', 
+   'あなたはアイリスの特徴量を正確に抽出するAIアシスタントです。画像からアイリスの花の特徴量（がく片と花弁の長さ・幅）を数値として読み取ってください。', 1, true),
+  ('88888888-8888-8888-8888-888888888888', 'iris_features', 'user', 
+   'アイリスの特徴量を以下のJSON Schemaに従って抽出してください：
+
+{{schema}}
+
+## 抽出ルール
+- 数値は小数点第1位まで正確に読み取る
+- 単位がcm以外の場合は適切にcmに変換する
+- 不明な項目は null とする
+- 結果はJSON形式で出力する', 2, true),
+  ('88888888-8888-8888-8888-888888888888', 'iris_features', 'assistant', 
+   '{
+  "sepal_length": 5.1,
+  "sepal_width": 3.5,
+  "petal_length": 1.4,
+  "petal_width": 0.2
+}', 3, true);
