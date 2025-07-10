@@ -110,6 +110,41 @@ services:
       - ./frontend:/app
       - /app/node_modules
 
+  ml_iris:
+    build:
+      context: ./ml_iris
+      dockerfile: Dockerfile
+    container_name: ml_iris
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./ml_iris:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: >
+      bash -c "
+        echo 'モデルファイルの存在確認中...';
+        if [ ! -f model/iris_model.pkl ]; then
+          echo 'モデルファイルが見つかりません。トレーニングを開始します...';
+          cd scripts && python train_model.py;
+          if [ $$? -eq 0 ]; then
+            echo 'モデルトレーニングが完了しました。';
+          else
+            echo 'モデルトレーニングでエラーが発生しました。';
+            exit 1;
+          fi
+        else
+          echo 'モデルファイルが見つかりました。';
+        fi;
+        echo 'APIサーバーを起動しています...';
+        python scripts/app.py
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_data:
   redis_data:

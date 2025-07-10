@@ -24,6 +24,7 @@ import {
   Save as SaveIcon,
   Undo as UndoIcon,
   Check as CheckIcon,
+  Psychology as PsychologyIcon,
 } from '@mui/icons-material';
 
 interface BlockDefinition {
@@ -53,6 +54,17 @@ interface OcrResultEditorProps {
   onSave: (blockId: string, correctedData: any) => Promise<void>;
   onCancel?: () => void;
   readonly?: boolean;
+  templateName?: string; // テンプレート名を追加
+}
+
+interface PredictionResult {
+  species: string;
+  species_id: number;
+  probabilities: {
+    setosa: number;
+    versicolor: number;
+    virginica: number;
+  };
 }
 
 const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
@@ -61,12 +73,16 @@ const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
   onSave,
   onCancel,
   readonly = false,
+  templateName,
 }) => {
   const [editedData, setEditedData] = useState<any>({});
   const [originalData, setOriginalData] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isModified, setIsModified] = useState(false);
+  const [predicting, setPredicting] = useState(false);
+  const [predictionResult, setPredictionResult] = useState<PredictionResult | null>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
 
   // 初期データの設定
   useEffect(() => {
@@ -297,6 +313,61 @@ const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
     setErrors({});
   };
 
+  // アイリステンプレートかどうかを判定
+  const isIrisTemplate = () => {
+    return templateName === 'アイリス予測用テンプレート' || 
+           (blockDefinition.block_id === 'iris_features' && 
+            blockDefinition.label === 'アイリス特徴量');
+  };
+
+  // 必要なフィールドが揃っているかチェック
+  const hasRequiredIrisFields = () => {
+    const requiredFields = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width'];
+    return requiredFields.every(field => 
+      editedData[field] !== undefined && 
+      editedData[field] !== null && 
+      editedData[field] !== ''
+    );
+  };
+
+  // 予測実行
+  const handlePredict = async () => {
+    if (!hasRequiredIrisFields()) {
+      setPredictionError('すべての特徴量が入力されている必要があります');
+      return;
+    }
+
+    try {
+      setPredicting(true);
+      setPredictionError(null);
+      
+      const response = await fetch('http://localhost:8082/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sepal_length: parseFloat(editedData.sepal_length),
+          sepal_width: parseFloat(editedData.sepal_width),
+          petal_length: parseFloat(editedData.petal_length),
+          petal_width: parseFloat(editedData.petal_width),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`予測APIエラー: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setPredictionResult(result);
+    } catch (error) {
+      console.error('Prediction failed:', error);
+      setPredictionError(error instanceof Error ? error.message : '予測に失敗しました');
+    } finally {
+      setPredicting(false);
+    }
+  };
+
   // エラー状態の場合
   if (block.extractionResult?.error) {
     return (
@@ -399,6 +470,39 @@ const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
           )}
         </Box>
 
+        {/* 予測結果表示 */}
+        {isIrisTemplate() && predictionResult && (
+          <Box mt={3}>
+            <Typography variant="h6" gutterBottom>
+              予測結果
+            </Typography>
+            <Card sx={{ backgroundColor: '#f8f9fa', p: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                <strong>予測品種:</strong> {predictionResult.species}
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                各品種の確率:
+              </Typography>
+              <Box sx={{ pl: 2 }}>
+                {Object.entries(predictionResult.probabilities).map(([species, prob]) => (
+                  <Typography key={species} variant="body2">
+                    {species}: {(prob * 100).toFixed(2)}%
+                  </Typography>
+                ))}
+              </Box>
+            </Card>
+          </Box>
+        )}
+
+        {/* 予測エラー表示 */}
+        {isIrisTemplate() && predictionError && (
+          <Box mt={2}>
+            <Alert severity="error">
+              {predictionError}
+            </Alert>
+          </Box>
+        )}
+
         {/* 操作ボタン */}
         {!readonly && (
           <Box mt={3} display="flex" gap={1}>
@@ -418,6 +522,18 @@ const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
             >
               元に戻す
             </Button>
+            {/* アイリス予測ボタン */}
+            {isIrisTemplate() && (
+              <Button
+                variant="outlined"
+                color="secondary"
+                startIcon={<PsychologyIcon />}
+                onClick={handlePredict}
+                disabled={!hasRequiredIrisFields() || predicting || saving}
+              >
+                {predicting ? '予測中...' : 'アイリス予測'}
+              </Button>
+            )}
             {onCancel && (
               <Button
                 variant="text"

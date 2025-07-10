@@ -855,6 +855,7 @@ const DocumentDetailPage: React.FC = () => {
                                       blockDefinition={blockDef}
                                       onSave={handleSaveOcrCorrection}
                                       onCancel={() => {}} // キャンセル機能は無効（常に編集モード）
+                                      templateName={documentData?.template?.name}
                                     />
                                   );
                                 } else {
