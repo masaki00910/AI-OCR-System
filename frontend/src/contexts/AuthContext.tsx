@@ -57,8 +57,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(response.user);
       
       // ログイン後にLLMダイアログを表示するかチェック
-      const shouldShow = userPreferencesService.shouldShowLLMSelectionDialog();
-      setShowLLMDialog(shouldShow);
+      const preferences = userPreferencesService.getPreferences();
+      setShowLLMDialog(preferences.showLLMSelectionDialog);
     } catch (error) {
       console.error('Login failed:', error);
       throw error;

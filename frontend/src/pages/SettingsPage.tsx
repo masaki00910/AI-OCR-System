@@ -345,16 +345,16 @@ export default function SettingsPage() {
                     ログイン時にLLMモデル選択ダイアログを表示するかどうか
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    現在の設定: {userPreferencesService.shouldShowLLMSelectionDialog() ? '表示する' : '表示しない'}
+                    現在の設定: {userPreferencesService.getPreferences().showLLMSelectionDialog ? '表示する' : '表示しない'}
                   </Typography>
                 </Box>
                 <Button
                   variant="outlined"
                   onClick={() => {
-                    userPreferencesService.setShowLLMSelectionDialog(true);
+                    userPreferencesService.setPreferences({ showLLMSelectionDialog: true });
                     setSuccessMessage('設定をリセットしました。次回ログイン時にダイアログが表示されます。');
                   }}
-                  disabled={userPreferencesService.shouldShowLLMSelectionDialog()}
+                  disabled={userPreferencesService.getPreferences().showLLMSelectionDialog}
                 >
                   表示を有効にする
                 </Button>

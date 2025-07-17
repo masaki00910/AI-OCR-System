@@ -51,7 +51,7 @@ const MainApp: React.FC = () => {
 
   const handleLLMDialogSave = (settings: any, dontShowAgain: boolean) => {
     if (dontShowAgain) {
-      userPreferencesService.setShowLLMSelectionDialog(false);
+      userPreferencesService.setPreferences({ showLLMSelectionDialog: false });
     }
     setShowLLMDialog(false);
   };
