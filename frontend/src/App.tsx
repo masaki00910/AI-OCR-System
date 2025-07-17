@@ -19,7 +19,7 @@ import UsersPage from './pages/UsersPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import SettingsPage from './pages/SettingsPage';
 import Navigation from './components/Navigation';
-import LLMModelSelectionDialog from './components/LLMModelSelectionDialog';
+import { LLMModelSelectionDialog } from './components/LLMModelSelectionDialog';
 import { userPreferencesService } from './services/user-preferences';
 
 const theme = createTheme({
