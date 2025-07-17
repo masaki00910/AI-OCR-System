@@ -167,8 +167,23 @@ const LoginPage: React.FC = () => {
               </form>
 
               <Box mt={2} textAlign="center">
-                <Typography variant="body2" color="text.secondary">
-                  デモアカウント: 会社ID「デモ企業」/ admin@demo.com / demo123
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  デモアカウント:
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', cursor: 'pointer' }} 
+                  onClick={() => navigator.clipboard?.writeText('デモ株式会社')}
+                  title="クリックでコピー">
+                  会社ID: デモ株式会社
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', cursor: 'pointer' }} 
+                  onClick={() => navigator.clipboard?.writeText('admin@demo.com')}
+                  title="クリックでコピー">
+                  メール: admin@demo.com
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', cursor: 'pointer' }} 
+                  onClick={() => navigator.clipboard?.writeText('demo123')}
+                  title="クリックでコピー">
+                  パスワード: demo123
                 </Typography>
               </Box>
             </CardContent>
