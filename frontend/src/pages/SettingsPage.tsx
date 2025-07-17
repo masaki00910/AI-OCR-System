@@ -22,9 +22,10 @@ import {
   Tab,
   Chip,
 } from '@mui/material';
-import { Save, Settings as SettingsIcon, SmartToy, Psychology } from '@mui/icons-material';
+import { Save, Settings as SettingsIcon, SmartToy, Psychology, AccountCircle } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { tenantApi } from '../services/api';
+import { userPreferencesService } from '../services/user-preferences';
 
 interface LLMSettings {
   defaultModel: 'claude' | 'gemini';
@@ -189,6 +190,13 @@ export default function SettingsPage() {
               id="settings-tab-0"
               aria-controls="settings-tabpanel-0"
             />
+            <Tab
+              label="ユーザー設定"
+              icon={<AccountCircle />}
+              iconPosition="start"
+              id="settings-tab-1"
+              aria-controls="settings-tabpanel-1"
+            />
             {/* 将来的に他の設定タブを追加可能 */}
           </Tabs>
         </Box>
@@ -307,6 +315,88 @@ export default function SettingsPage() {
                   startIcon={saving ? <CircularProgress size={20} /> : <Save />}
                 >
                   {saving ? '保存中...' : 'LLM設定を保存'}
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AccountCircle color="primary" />
+              ユーザープリファレンス
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              ユーザー個人の設定を管理します
+            </Typography>
+
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                ダイアログ表示設定
+              </Typography>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="body1">
+                    LLMモデル選択ダイアログ
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    ログイン時にLLMモデル選択ダイアログを表示するかどうか
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    現在の設定: {userPreferencesService.shouldShowLLMSelectionDialog() ? '表示する' : '表示しない'}
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    userPreferencesService.setShowLLMSelectionDialog(true);
+                    setSuccessMessage('設定をリセットしました。次回ログイン時にダイアログが表示されます。');
+                  }}
+                  disabled={userPreferencesService.shouldShowLLMSelectionDialog()}
+                >
+                  表示を有効にする
+                </Button>
+              </Box>
+
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="info">
+                  <Typography variant="body2">
+                    この設定は、ログイン後に表示されるLLMモデル選択ダイアログに関するものです。
+                    「次回表示しない」を選択した場合でも、ここから再び有効にできます。
+                  </Typography>
+                </Alert>
+              </Box>
+            </Box>
+
+            <Divider sx={{ my: 3 }} />
+
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                デバッグ・テスト用
+              </Typography>
+              
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => {
+                    userPreferencesService.resetPreferences();
+                    setSuccessMessage('すべてのユーザー設定をリセットしました。');
+                  }}
+                >
+                  すべての設定をリセット
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    const prefs = userPreferencesService.getPreferences();
+                    alert(`現在の設定:\n${JSON.stringify(prefs, null, 2)}`);
+                  }}
+                >
+                  現在の設定を確認
                 </Button>
               </Box>
             </Box>
