@@ -348,23 +348,37 @@ export default function SettingsPage() {
                     現在の設定: {userPreferencesService.getPreferences().showLLMSelectionDialog ? '表示する' : '表示しない'}
                   </Typography>
                 </Box>
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    userPreferencesService.setPreferences({ showLLMSelectionDialog: true });
-                    setSuccessMessage('設定をリセットしました。次回ログイン時にダイアログが表示されます。');
-                  }}
-                  disabled={userPreferencesService.getPreferences().showLLMSelectionDialog}
-                >
-                  表示を有効にする
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant={userPreferencesService.getPreferences().showLLMSelectionDialog ? "contained" : "outlined"}
+                    color="primary"
+                    onClick={() => {
+                      userPreferencesService.setPreferences({ showLLMSelectionDialog: true });
+                      setSuccessMessage('設定を変更しました。次回ログイン時にダイアログが表示されます。');
+                    }}
+                    disabled={userPreferencesService.getPreferences().showLLMSelectionDialog}
+                  >
+                    表示する
+                  </Button>
+                  <Button
+                    variant={!userPreferencesService.getPreferences().showLLMSelectionDialog ? "contained" : "outlined"}
+                    color="secondary"
+                    onClick={() => {
+                      userPreferencesService.setPreferences({ showLLMSelectionDialog: false });
+                      setSuccessMessage('設定を変更しました。次回ログイン時にダイアログは表示されません。');
+                    }}
+                    disabled={!userPreferencesService.getPreferences().showLLMSelectionDialog}
+                  >
+                    表示しない
+                  </Button>
+                </Box>
               </Box>
 
               <Box sx={{ mt: 2 }}>
                 <Alert severity="info">
                   <Typography variant="body2">
                     この設定は、ログイン後に表示されるLLMモデル選択ダイアログに関するものです。
-                    「次回表示しない」を選択した場合でも、ここから再び有効にできます。
+                    いつでもここから表示/非表示を切り替えることができます。
                   </Typography>
                 </Alert>
               </Box>

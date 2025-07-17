@@ -28,7 +28,7 @@ export const LLMModelSelectionDialog: React.FC<LLMModelSelectionDialogProps> = (
   onClose,
   onSave
 }) => {
-  const [selectedModel, setSelectedModel] = useState<string>('claude-3-5-sonnet-20241022');
+  const [selectedModel, setSelectedModel] = useState<string>('claude-4-sonnet');
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
   const handleSave = async () => {
@@ -72,12 +72,12 @@ export const LLMModelSelectionDialog: React.FC<LLMModelSelectionDialogProps> = (
               sx={{ mt: 1 }}
             >
               <FormControlLabel
-                value="claude-3-5-sonnet-20241022"
+                value="claude-4-sonnet"
                 control={<Radio />}
                 label={
                   <Box>
                     <Typography variant="body1" fontWeight="medium">
-                      Claude 3.5 Sonnet
+                      Claude 4 Sonnet
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       高精度な文書解析と自然な対話が可能
@@ -86,12 +86,12 @@ export const LLMModelSelectionDialog: React.FC<LLMModelSelectionDialogProps> = (
                 }
               />
               <FormControlLabel
-                value="gemini-1.5-pro"
+                value="gemini-2.0-flash"
                 control={<Radio />}
                 label={
                   <Box>
                     <Typography variant="body1" fontWeight="medium">
-                      Gemini 1.5 Pro
+                      Gemini 2.0 Flash
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       多様なファイル形式に対応、高速処理
