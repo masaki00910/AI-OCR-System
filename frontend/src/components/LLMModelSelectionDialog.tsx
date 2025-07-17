@@ -56,12 +56,12 @@ export const LLMModelSelectionDialog: React.FC<LLMModelSelectionDialogProps> = (
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth="sm" fullWidth>
       <DialogTitle>
-        LLMモデルの選択
+        LLMモデル選択ダイアログ
       </DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            使用するLLMモデルを選択してください。この設定は後で変更することも可能です。
+            ログイン時にLLMモデル選択ダイアログを表示します。使用するLLMモデルを選択してください。この設定は後で変更することも可能です。
           </Typography>
           
           <FormControl component="fieldset" fullWidth>
@@ -110,7 +110,7 @@ export const LLMModelSelectionDialog: React.FC<LLMModelSelectionDialogProps> = (
                   onChange={(e) => setDontShowAgain(e.target.checked)}
                 />
               }
-              label="次回からこのダイアログを表示しない"
+              label="次回ログイン時にこのダイアログを表示しない"
             />
           </FormGroup>
         </Box>
