@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authService, User, LoginRequest } from '../services/auth';
+import { userPreferencesService } from '../services/user-preferences';
 
 interface AuthContextType {
   user: User | null;
@@ -7,6 +8,8 @@ interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  showLLMDialog: boolean;
+  setShowLLMDialog: (show: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,6 +29,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLLMDialog, setShowLLMDialog] = useState(false);
 
   useEffect(() => {
     // Initialize authentication state on app startup
@@ -50,7 +54,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       const response = await authService.login(credentials);
-      setUser({ ...response.user, tenant: response.tenant });
+      setUser(response.user);
+      
+      // ログイン後にLLMダイアログを表示するかチェック
+      const preferences = userPreferencesService.getPreferences();
+      setShowLLMDialog(preferences.showLLMSelectionDialog);
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -70,6 +78,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     isAuthenticated: !!user && authService.isAuthenticated(),
+    showLLMDialog,
+    setShowLLMDialog,
   };
 
   return (
