@@ -138,6 +138,7 @@ cropped/
 .temp
 .cache
 .parcel-cache
+__pycache__/
 
 # エラーレポート
 error-reports/
