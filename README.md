@@ -20,14 +20,82 @@ AIドリブン開発ツールとコンテナ技術を活用した、ドキュメ
 
 以下のツールがインストール済みであることを確認してください：
 
+### 必須要件
+
+#### 1. WSL (Windows Subsystem for Linux)
+**確認コマンド：**
+```powershell
+wsl --version
+```
+
+**インストール方法（未インストールの場合）：**
+```powershell
+# 管理者権限でPowerShellを開いて実行
+wsl --install
+```
+インストール後、PCの再起動が必要です。
+
+#### 2. Python pip
+**確認コマンド：**
+```powershell
+pip --version
+# または
+python -m pip --version
+```
+
+**インストール方法（未インストールの場合）：**
+1. [Python公式サイト](https://www.python.org/downloads/)から最新版をダウンロード
+2. インストール時に「Add Python to PATH」にチェックを入れる
+3. インストール後、PowerShellを再起動してから確認コマンドを実行
+
+#### 3. コンテナランタイム（DockerまたはPodman）
+**Docker確認コマンド：**
+```powershell
+docker --version
+docker compose version
+```
+
+**Podman確認コマンド：**
+```powershell
+podman --version
+podman compose version
+```
+
+**Dockerインストール方法（未インストールの場合）：**
+1. [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)をダウンロード
+2. インストーラーを実行（WSL2バックエンドを選択）
+3. インストール後、Docker Desktopを起動
+
+**Podmanインストール方法（未インストールの場合）：**
+1. [Podman公式サイト](https://podman.io/getting-started/installation#windows)からインストーラーをダウンロード
+2. インストーラーを実行
+3. PowerShellを再起動後、確認コマンドを実行
+
+**Podman Composeインストール方法（`podman compose`コマンドが使えない場合）：**
+```powershell
+pip install podman-compose
+```
+
+### コンテナランタイムの起動
+
+**Docker Desktopの場合：**
+- スタートメニューから「Docker Desktop」を起動
+- システムトレイのDockerアイコンが白くなるまで待つ
+
+**Podmanの場合：**
+```powershell
+# PowerShellで実行
+podman machine init
+podman machine start
+```
+
+### その他の必須ツール
+
 - ✅ **AI駆動開発ツール**（いずれか一つ）
   - [GitHub Copilot](https://github.com/features/copilot)
   - [Gemini CLI](https://ai.google.dev/gemini-api)
   - [Claude Code](https://claude.ai/code)
   - [Roo Code](https://roo.dev/) など
-- ✅ **コンテナランタイム**（いずれか一つ）
-  - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-  - [Podman](https://podman.io/getting-started/installation) （推奨：軽量）
 - ✅ **Git**
   - [Git for Windows](https://gitforwindows.org/) （Windows）
   - または既存のGitクライアント
